@@ -366,7 +366,9 @@
               <button class="btn" id="sampleBtn" type="button">加载测试转写</button>
               <button class="btn" id="markBtn" type="button">添加重点标记</button>
               <button class="btn btn-primary" id="analyzeBtn" type="button">生成我的纪要</button>
+              <button class="btn" id="pauseBtn" type="button" disabled>暂停生成</button>
             </div>
+            <p class="panel-note" id="generationStatus" aria-live="polite"></p>
 
             <div class="markers" id="markers"></div>
           </div>
@@ -392,12 +394,15 @@
       let resultUser = "";
       let activeTab = "actions";
       let editingTaskKey = "";
+      let analysisController = null;
 
       const content = document.querySelector("#content");
       const markersEl = document.querySelector("#markers");
       const analyzeBtn = document.querySelector("#analyzeBtn");
       const markBtn = document.querySelector("#markBtn");
       const sampleBtn = document.querySelector("#sampleBtn");
+      const pauseBtn = document.querySelector("#pauseBtn");
+      const generationStatus = document.querySelector("#generationStatus");
 
       function pad(value) {
         return String(value).padStart(2, "0");
@@ -602,8 +607,11 @@
       });
 
       analyzeBtn.addEventListener("click", async () => {
+        analysisController = new AbortController();
         analyzeBtn.disabled = true;
         analyzeBtn.textContent = "分析中...";
+        pauseBtn.disabled = false;
+        generationStatus.textContent = "正在生成，可暂停后修改输入。";
 
         const formData = new FormData();
         const audio = document.querySelector("#audio").files[0];
@@ -617,14 +625,29 @@
           const response = await fetch("/api/meetings/analyze", {
             method: "POST",
             body: formData,
+            signal: analysisController.signal,
           });
+          if (!response.ok) throw new Error("会议分析失败");
           result = await response.json();
           resultUser = analysisUser;
           render();
+          generationStatus.textContent = "";
+        } catch (error) {
+          if (error.name === "AbortError") {
+            generationStatus.textContent = "已暂停生成。修改输入后可重新生成。";
+          } else {
+            generationStatus.textContent = "生成失败，请检查输入或网络后重试。";
+          }
         } finally {
           analyzeBtn.disabled = false;
           analyzeBtn.textContent = "生成我的纪要";
+          pauseBtn.disabled = true;
+          analysisController = null;
         }
+      });
+
+      pauseBtn.addEventListener("click", () => {
+        analysisController?.abort();
       });
 
       document.querySelectorAll(".tab").forEach((tab) => {
