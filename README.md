@@ -66,6 +66,10 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 Demo 页面有“加载测试转写”按钮，点击后会填入仓库自带的“录音豆预赛方案讨论”完整转写。再输入当前用户，例如“小万”，点击“生成我的纪要”即可测试完整流程。样本原文在 `static/samples/recording-bean-preliminary-meeting.txt`。
 
+### 测试“个人重点”
+
+点击“个人重点”，输入一个具体问题，例如“技术流程什么时候能给出？”，再点击“生成个人重点”。页面会给出围绕该问题的回答和原文依据；你也可以在“复查索引”中粘贴一句话或一段原文，定位并复制对应的会议片段。
+
 ## 团队协作
 
 仓库目前是私有的。先由仓库管理员在 GitHub 的 `Settings → Collaborators` 邀请队友，接受邀请后即可访问和提交代码。
@@ -124,4 +128,5 @@ python -m unittest discover -s tests -v
 
 - `GET /api/health`：检查服务是否启动。
 - `POST /api/meetings/analyze`：接收 `current_user`、`transcript`、可选 `audio` 和 `markers`，返回会议分析结果。
+- `POST /api/meetings/focus`：接收 `current_user`、`transcript` 和 `focus_query`，返回个人重点及可复查的原文依据。
 - `GET /docs`：打开接口文档。

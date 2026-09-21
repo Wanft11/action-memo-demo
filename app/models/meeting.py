@@ -23,6 +23,20 @@ class MeetingInsight(BaseModel):
     evidence: str
 
 
+class MeetingFocusSource(BaseModel):
+    source: str
+    evidence: str
+    reason: str = ""
+
+
+class MeetingFocusAnalysis(BaseModel):
+    query: str
+    title: str
+    answer: str
+    sources: list[MeetingFocusSource]
+    demo_mode: bool = True
+
+
 class MeetingAnalysis(BaseModel):
     meeting_title: str
     summary: str

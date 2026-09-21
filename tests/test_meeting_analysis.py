@@ -2,11 +2,13 @@ import unittest
 from pathlib import Path
 
 from app.services.meeting_analyzer import (
+    build_local_focus_analysis,
     build_local_transcript_analysis,
     dedupe_tasks,
     extract_meeting_title,
     find_context_snippet,
     normalize_llm_analysis,
+    normalize_focus_analysis,
     split_transcript_lines,
     transcript_turns,
 )
@@ -32,6 +34,31 @@ def task(title, assignee, evidence, deadline="待确认"):
 
 
 class MeetingAnalysisTests(unittest.TestCase):
+    def test_local_focus_returns_ranked_original_sources(self):
+        result = build_local_focus_analysis(TRANSCRIPT, "小万", "技术流程什么时候完成")
+
+        self.assertEqual(result.query, "技术流程什么时候完成")
+        self.assertGreaterEqual(len(result.sources), 2)
+        self.assertIn("技术流程", result.sources[0].evidence)
+        self.assertEqual(result.sources[0].source, "06:03")
+        self.assertIn("今晚", result.sources[1].evidence)
+
+    def test_focus_citations_reconstruct_original_turns(self):
+        result = normalize_focus_analysis(
+            {
+                "title": "技术流程安排",
+                "answer": "阿哲会在今晚给出技术流程版本。",
+                "sources": [{"evidence_ids": ["T001", "T002", "T999"], "reason": "说明任务与期限"}],
+            },
+            TRANSCRIPT,
+            "技术流程",
+        )
+
+        self.assertFalse(result.demo_mode)
+        self.assertEqual([source.source for source in result.sources], ["06:03", "06:03"])
+        self.assertIn("小周：这个你之后能不能画一个很简单的技术流程？", result.sources[0].evidence)
+        self.assertIn("阿哲：可以，我今晚弄一下。", result.sources[1].evidence)
+
     def test_full_demo_sample_is_available_and_parseable(self):
         sample_path = Path(__file__).resolve().parents[1] / "static" / "samples" / "recording-bean-preliminary-meeting.txt"
         sample = sample_path.read_text(encoding="utf-8")

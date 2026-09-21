@@ -208,6 +208,17 @@
         border-color: #2449d7;
       }
 
+      .btn-focus {
+        border-color: #bdebd9;
+        background: var(--green-soft);
+        color: var(--green);
+      }
+
+      .btn-focus:hover:not(:disabled) {
+        border-color: #69cfae;
+        background: #dff6ec;
+      }
+
       .btn:disabled {
         cursor: not-allowed;
         opacity: 0.52;
@@ -355,6 +366,122 @@
         line-height: 1.6;
       }
 
+      .focus-workspace {
+        display: grid;
+        gap: 18px;
+      }
+
+      .focus-heading {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      .focus-kicker {
+        margin: 0 0 5px;
+        color: var(--green);
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .focus-heading h2 {
+        margin: 0;
+        font-size: 22px;
+      }
+
+      .focus-query {
+        display: grid;
+        gap: 8px;
+      }
+
+      .focus-query label,
+      .focus-source-title {
+        color: #3e4c67;
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      .focus-answer {
+        border-left: 4px solid var(--green);
+        background: #f2fbf7;
+        padding: 18px;
+      }
+
+      .focus-answer h3 {
+        margin: 0 0 8px;
+        font-size: 20px;
+      }
+
+      .focus-answer p {
+        margin: 0;
+        line-height: 1.65;
+      }
+
+      .focus-source-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .focus-source {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 14px;
+      }
+
+      .focus-source-top,
+      .focus-trace-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .focus-source-time {
+        color: var(--blue);
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .focus-reason {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .focus-search {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px;
+      }
+
+      .focus-trace {
+        border: 1px solid #cce8dc;
+        background: #f7fdf9;
+        padding: 16px;
+      }
+
+      .focus-trace p {
+        margin: 10px 0 0;
+        line-height: 1.7;
+      }
+
+      mark {
+        background: #fff2a9;
+        color: inherit;
+        padding: 0 2px;
+      }
+
+      .focus-loading {
+        display: grid;
+        place-items: center;
+        min-height: 250px;
+        border: 1px dashed #b9d7ca;
+        background: #f7fdf9;
+        color: var(--green);
+        font-weight: 750;
+      }
+
       .transcript-line {
         border-bottom: 1px solid #edf0f5;
         padding: 10px 0;
@@ -414,6 +541,17 @@
         .task-top {
           gap: 8px;
         }
+
+        .focus-heading,
+        .focus-source-top,
+        .focus-trace-top {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .focus-search {
+          grid-template-columns: 1fr;
+        }
       }
     </style>
   </head>
@@ -454,6 +592,7 @@
 
             <div class="button-row">
               <button class="btn btn-primary" id="analyzeBtn" type="button">生成我的纪要</button>
+              <button class="btn btn-focus" id="focusBtn" type="button">个人重点</button>
               <button class="btn" id="pauseBtn" type="button" disabled>暂停生成</button>
               <button class="btn" id="sampleBtn" type="button">加载测试转写</button>
               <button class="btn" id="markBtn" type="button">添加重点标记</button>
@@ -467,6 +606,7 @@
         <section class="panel">
           <div class="tabs">
             <button class="tab active" data-tab="actions" type="button">我的待办</button>
+            <button class="tab" data-tab="focus" type="button">个人重点</button>
             <button class="tab" data-tab="all-actions" type="button">全部待办</button>
             <button class="tab" data-tab="summary" type="button">会议摘要</button>
             <button class="tab" data-tab="transcript" type="button">全文转写</button>
@@ -485,12 +625,19 @@
       let activeTab = "actions";
       let editingTaskKey = "";
       let analysisController = null;
+      let focusResult = null;
+      let focusQuery = "";
+      let focusTrace = null;
+      let focusMessage = "";
+      let focusLoading = false;
+      let focusController = null;
 
       const content = document.querySelector("#content");
       const markersEl = document.querySelector("#markers");
       const analyzeBtn = document.querySelector("#analyzeBtn");
       const markBtn = document.querySelector("#markBtn");
       const sampleBtn = document.querySelector("#sampleBtn");
+      const focusBtn = document.querySelector("#focusBtn");
       const pauseBtn = document.querySelector("#pauseBtn");
       const generationStatus = document.querySelector("#generationStatus");
 
@@ -518,6 +665,132 @@
 
       function taskKey(task) {
         return `${task.task}|${task.assignee}|${task.source}`;
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      function activateTab(tabName) {
+        activeTab = tabName;
+        document.querySelectorAll(".tab").forEach((item) => {
+          item.classList.toggle("active", item.dataset.tab === tabName);
+        });
+        render();
+      }
+
+      function compactText(value) {
+        return String(value || "").replace(/[\s，。、“”"'：:；;,.!?！？]/g, "");
+      }
+
+      function highlightText(text, query) {
+        let highlighted = escapeHtml(text);
+        const fragments = String(query || "")
+          .split(/[，。；、\s!?！？]+/)
+          .filter((fragment) => fragment.length >= 3)
+          .sort((left, right) => right.length - left.length);
+        fragments.forEach((fragment) => {
+          const safeFragment = escapeHtml(fragment);
+          highlighted = highlighted.replaceAll(safeFragment, `<mark>${safeFragment}</mark>`);
+        });
+        return highlighted;
+      }
+
+      function findTranscriptTrace(query) {
+        const lines = document.querySelector("#transcript").value.split(/\r?\n/);
+        const queryKey = compactText(query);
+        if (queryKey.length < 3) return null;
+
+        let source = "会议转写";
+        let bestMatch = null;
+        lines.forEach((rawLine) => {
+          const line = rawLine.trim();
+          if (!line) return;
+          const timestamp = line.match(/^(\d{1,2}:\d{2}(?::\d{2})?)/);
+          if (timestamp) source = timestamp[1];
+          const lineKey = compactText(line);
+          if (lineKey.length < 3) return;
+          const overlap = [...new Set(queryKey)].filter((character) => lineKey.includes(character)).length;
+          const score = (lineKey.includes(queryKey) || queryKey.includes(lineKey) ? 100 : 0) + overlap / queryKey.length;
+          if (!bestMatch || score > bestMatch.score) bestMatch = { source, evidence: line, score };
+        });
+        return bestMatch && bestMatch.score > 0.18 ? bestMatch : null;
+      }
+
+      function renderFocusWorkspace() {
+        const sourceCards = (focusResult?.sources || [])
+          .map((source, index) => `
+            <article class="focus-source">
+              <div class="focus-source-top">
+                <span class="focus-source-time">原文依据｜${escapeHtml(source.source)}</span>
+                <button class="btn" type="button" data-focus-action="trace-source" data-source-index="${index}">查看原文</button>
+              </div>
+              <p class="quote" style="margin-top: 10px">${escapeHtml(source.evidence)}</p>
+              ${source.reason ? `<p class="focus-reason">${escapeHtml(source.reason)}</p>` : ""}
+            </article>
+          `)
+          .join("");
+
+        const output = focusLoading
+          ? `<div class="focus-loading">正在定位与你有关的重点和原文依据...</div>`
+          : focusResult
+            ? `
+              <section class="focus-answer">
+                <div class="focus-source-top">
+                  <span class="focus-kicker">个人重点输出</span>
+                  <button class="btn" type="button" data-focus-action="copy-answer">复制重点</button>
+                </div>
+                <h3>${escapeHtml(focusResult.title)}</h3>
+                <p>${escapeHtml(focusResult.answer)}</p>
+              </section>
+              <section class="focus-source-list">
+                <div class="focus-source-title">原文依据</div>
+                ${sourceCards || '<div class="empty">暂未定位到可复查的原文依据。</div>'}
+              </section>
+              <section class="focus-query">
+                <label for="traceQuery">复查索引</label>
+                <div class="focus-search">
+                  <input class="input" id="traceQuery" placeholder="输入一句话或粘贴一段原文，定位对应内容" />
+                  <button class="btn" type="button" data-focus-action="search-trace">检索原文</button>
+                </div>
+              </section>
+              ${focusTrace ? `
+                <section class="focus-trace">
+                  <div class="focus-trace-top">
+                    <span class="focus-source-time">原文溯源｜${escapeHtml(focusTrace.source)}</span>
+                    <button class="btn" type="button" data-focus-action="copy-trace">复制原文</button>
+                  </div>
+                  <p>${highlightText(focusTrace.evidence, focusTrace.query || focusQuery)}</p>
+                </section>
+              ` : ""}
+            `
+            : '<div class="empty">输入一个你最关心的问题。生成后，答案会附带可复查的原文依据。</div>';
+
+        return `
+          <div class="focus-workspace">
+            <div class="focus-heading">
+              <div>
+                <p class="focus-kicker">个人重点</p>
+                <h2>这场沟通里，你最想弄清什么？</h2>
+              </div>
+            </div>
+            <section class="focus-query">
+              <label for="focusQuery">输入重点</label>
+              <textarea id="focusQuery" placeholder="例如：我接下来要准备什么？客户对方案最在意的是什么？">${escapeHtml(focusQuery)}</textarea>
+              <div class="button-row">
+                <button class="btn btn-primary" type="button" data-focus-action="generate" ${focusLoading ? "disabled" : ""}>生成个人重点</button>
+                ${focusLoading ? '<button class="btn" type="button" data-focus-action="cancel">暂停生成</button>' : ""}
+              </div>
+              ${focusMessage ? `<p class="panel-note">${escapeHtml(focusMessage)}</p>` : ""}
+            </section>
+            ${output}
+          </div>
+        `;
       }
 
       function updateTaskStatus(key, status) {
@@ -550,6 +823,10 @@
       }
 
       function render() {
+        if (activeTab === "focus") {
+          content.innerHTML = renderFocusWorkspace();
+          return;
+        }
         if (!result) {
           content.innerHTML = '<div class="empty">上传录音或直接点击生成，查看 Demo 结果。</div>';
           return;
@@ -740,16 +1017,119 @@
         analysisController?.abort();
       });
 
+      focusBtn.addEventListener("click", () => {
+        activateTab("focus");
+        content.querySelector("#focusQuery")?.focus();
+      });
+
       document.querySelectorAll(".tab").forEach((tab) => {
         tab.addEventListener("click", () => {
-          activeTab = tab.dataset.tab;
-          document.querySelectorAll(".tab").forEach((item) => item.classList.remove("active"));
-          tab.classList.add("active");
-          render();
+          activateTab(tab.dataset.tab);
         });
       });
 
       content.addEventListener("click", (event) => {
+        const focusActionButton = event.target.closest("[data-focus-action]");
+        if (focusActionButton) {
+          const focusAction = focusActionButton.dataset.focusAction;
+          focusQuery = content.querySelector("#focusQuery")?.value.trim() || focusQuery;
+
+          if (focusAction === "cancel") {
+            focusController?.abort();
+            return;
+          }
+
+          if (focusAction === "copy-answer" && focusResult) {
+            navigator.clipboard.writeText(focusResult.answer).then(() => {
+              focusMessage = "个人重点已复制。";
+              render();
+            });
+            return;
+          }
+
+          if (focusAction === "copy-trace" && focusTrace) {
+            navigator.clipboard.writeText(focusTrace.evidence).then(() => {
+              focusMessage = "原文已复制。";
+              render();
+            });
+            return;
+          }
+
+          if (focusAction === "trace-source" && focusResult) {
+            const source = focusResult.sources[Number(focusActionButton.dataset.sourceIndex)];
+            if (source) {
+              focusTrace = { ...source, query: source.evidence };
+              focusMessage = "已定位到这条原文。";
+              render();
+            }
+            return;
+          }
+
+          if (focusAction === "search-trace") {
+            const traceQuery = content.querySelector("#traceQuery")?.value.trim() || "";
+            const match = findTranscriptTrace(traceQuery);
+            if (match) {
+              focusTrace = { ...match, query: traceQuery };
+              focusMessage = "已找到最相关的原文片段。";
+            } else {
+              focusMessage = "没有找到足够相关的原文，请换一个更短的关键词或句子。";
+            }
+            render();
+            return;
+          }
+
+          if (focusAction === "generate") {
+            const transcript = document.querySelector("#transcript").value.trim();
+            if (!transcript) {
+              focusMessage = "请先粘贴会议转写、上传录音，或加载测试转写。";
+              render();
+              return;
+            }
+            if (!focusQuery) {
+              focusMessage = "请输入你最关心的问题。";
+              render();
+              return;
+            }
+
+            focusLoading = true;
+            focusMessage = "";
+            focusResult = null;
+            focusTrace = null;
+            focusController = new AbortController();
+            render();
+
+            const formData = new FormData();
+            formData.append("transcript", transcript);
+            formData.append("current_user", document.querySelector("#user").value.trim());
+            formData.append("focus_query", focusQuery);
+
+            fetch("/api/meetings/focus", {
+              method: "POST",
+              body: formData,
+              signal: focusController.signal,
+            })
+              .then(async (response) => {
+                if (!response.ok) throw new Error("个人重点生成失败");
+                return response.json();
+              })
+              .then((data) => {
+                focusResult = data;
+                focusTrace = data.sources?.[0] || null;
+              })
+              .catch((error) => {
+                focusMessage = error.name === "AbortError"
+                  ? "已暂停生成。修改重点后可重新生成。"
+                  : "生成失败，请检查网络或稍后重试。";
+              })
+              .finally(() => {
+                focusLoading = false;
+                focusController = null;
+                render();
+              });
+            return;
+          }
+        }
+
         const button = event.target.closest("[data-task-action]");
         if (!button) return;
 

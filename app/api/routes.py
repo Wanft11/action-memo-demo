@@ -1,9 +1,10 @@
 import json
 
-from fastapi import APIRouter, File, Form, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
-from app.models.meeting import MeetingAnalysis, MeetingMarker
+from app.models.meeting import MeetingAnalysis, MeetingFocusAnalysis, MeetingMarker
 from app.services.meeting_analyzer import (
+    analyze_personal_focus,
     analyze_transcript_with_llm,
     build_local_transcript_analysis,
     build_demo_analysis,
@@ -18,6 +19,24 @@ router = APIRouter()
 @router.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@router.post("/meetings/focus", response_model=MeetingFocusAnalysis)
+def analyze_focus(
+    transcript: str = Form(default=""),
+    current_user: str = Form(default=""),
+    focus_query: str = Form(default=""),
+) -> MeetingFocusAnalysis:
+    if not transcript.strip():
+        raise HTTPException(status_code=422, detail="请先提供会议转写内容")
+    if not focus_query.strip():
+        raise HTTPException(status_code=422, detail="请输入想关注的重点")
+
+    return analyze_personal_focus(
+        transcript=transcript,
+        current_user=current_user,
+        focus_query=focus_query,
+    )
 
 
 @router.post("/meetings/analyze", response_model=MeetingAnalysis)
