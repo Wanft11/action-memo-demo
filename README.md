@@ -33,6 +33,18 @@ Add your own API key to `.env`:
 OPENAI_API_KEY="your-api-key"
 ```
 
+On macOS, open the file directly with TextEdit:
+
+```bash
+open -e .env
+```
+
+Or, if you use VS Code:
+
+```bash
+code .env
+```
+
 Start the server:
 
 ```bash
