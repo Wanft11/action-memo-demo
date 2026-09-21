@@ -1,10 +1,14 @@
 import unittest
+from pathlib import Path
 
 from app.services.meeting_analyzer import (
     build_local_transcript_analysis,
     dedupe_tasks,
+    extract_meeting_title,
     find_context_snippet,
     normalize_llm_analysis,
+    split_transcript_lines,
+    transcript_turns,
 )
 
 
@@ -28,6 +32,16 @@ def task(title, assignee, evidence, deadline="待确认"):
 
 
 class MeetingAnalysisTests(unittest.TestCase):
+    def test_full_demo_sample_is_available_and_parseable(self):
+        sample_path = Path(__file__).resolve().parents[1] / "static" / "samples" / "recording-bean-preliminary-meeting.txt"
+        sample = sample_path.read_text(encoding="utf-8")
+        turns = transcript_turns(split_transcript_lines(sample))
+
+        self.assertEqual(extract_meeting_title(split_transcript_lines(sample)), "录音豆预赛方案讨论")
+        self.assertGreaterEqual(len(turns), 50)
+        self.assertIn("小万：我还没填，等会提醒我。", sample)
+        self.assertIn("阿哲：可以，我今晚弄一下。", sample)
+
     def test_explicit_meeting_subject_replaces_model_title(self):
         transcript = "会议主题：录音豆预赛方案讨论\n小万：今天确定分工。"
         result = normalize_llm_analysis({"meeting_title": "录音豆项目会议"}, transcript, "小万", None)

@@ -363,6 +363,7 @@
             </div>
 
             <div class="button-row">
+              <button class="btn" id="sampleBtn" type="button">加载测试转写</button>
               <button class="btn" id="markBtn" type="button">添加重点标记</button>
               <button class="btn btn-primary" id="analyzeBtn" type="button">生成我的纪要</button>
             </div>
@@ -396,6 +397,7 @@
       const markersEl = document.querySelector("#markers");
       const analyzeBtn = document.querySelector("#analyzeBtn");
       const markBtn = document.querySelector("#markBtn");
+      const sampleBtn = document.querySelector("#sampleBtn");
 
       function pad(value) {
         return String(value).padStart(2, "0");
@@ -582,6 +584,21 @@
           note: markers.length % 2 === 0 ? "硬件按钮模拟：这里很重要" : "跟我相关的任务",
         });
         renderMarkers();
+      });
+
+      sampleBtn.addEventListener("click", async () => {
+        sampleBtn.disabled = true;
+        sampleBtn.textContent = "加载中...";
+
+        try {
+          const response = await fetch("/static/samples/recording-bean-preliminary-meeting.txt");
+          if (!response.ok) throw new Error("测试转写加载失败");
+          document.querySelector("#transcript").value = await response.text();
+          document.querySelector("#user").focus();
+        } finally {
+          sampleBtn.disabled = false;
+          sampleBtn.textContent = "加载测试转写";
+        }
       });
 
       analyzeBtn.addEventListener("click", async () => {

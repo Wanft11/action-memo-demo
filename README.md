@@ -62,6 +62,10 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 没有 API Key 时，页面仍会打开并显示兜底示例。真实录音转写和 AI 会议分析需要配置 Key。
 
+### 快速试跑样本
+
+Demo 页面有“加载测试转写”按钮，点击后会填入仓库自带的“录音豆预赛方案讨论”完整转写。再输入当前用户，例如“小万”，点击“生成我的纪要”即可测试完整流程。样本原文在 `static/samples/recording-bean-preliminary-meeting.txt`。
+
 ## 团队协作
 
 仓库目前是私有的。先由仓库管理员在 GitHub 的 `Settings → Collaborators` 邀请队友，接受邀请后即可访问和提交代码。
