@@ -2,7 +2,15 @@ import json
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
+from app.models.history import MeetingHistoryPayload
 from app.models.meeting import MeetingAnalysis, MeetingFocusAnalysis, MeetingMarker
+from app.services.personal_memory import (
+    build_personal_profile,
+    get_meeting,
+    list_meetings,
+    personal_context,
+    save_meeting,
+)
 from app.services.meeting_analyzer import (
     analyze_personal_focus,
     analyze_transcript_with_llm,
@@ -19,6 +27,47 @@ router = APIRouter()
 @router.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@router.get("/meetings/history")
+def meeting_history(current_user: str = "") -> list[dict]:
+    if not current_user.strip():
+        return []
+    return list_meetings(current_user)
+
+
+@router.get("/meetings/history/{meeting_id}")
+def meeting_history_item(meeting_id: str, current_user: str = "") -> dict:
+    record = get_meeting(meeting_id, current_user)
+    if not record:
+        raise HTTPException(status_code=404, detail="没有找到这条本地记录")
+    return record
+
+
+@router.post("/meetings/history")
+def create_meeting_history(payload: MeetingHistoryPayload) -> dict:
+    return save_meeting(payload.model_dump())
+
+
+@router.put("/meetings/history/{meeting_id}")
+def update_meeting_history(meeting_id: str, payload: MeetingHistoryPayload) -> dict:
+    existing = get_meeting(meeting_id, payload.current_user)
+    if not existing:
+        raise HTTPException(status_code=404, detail="没有找到这条本地记录")
+    return save_meeting(payload.model_dump(), meeting_id=meeting_id)
+
+
+@router.get("/meetings/profile")
+def meeting_profile(current_user: str = "") -> dict:
+    if not current_user.strip():
+        return {
+            "current_user": "",
+            "saved_meeting_count": 0,
+            "confirmed_tasks": [],
+            "excluded_tasks": [],
+            "collaborators": [],
+        }
+    return build_personal_profile(current_user)
 
 
 @router.post("/meetings/focus", response_model=MeetingFocusAnalysis)
@@ -55,6 +104,7 @@ async def analyze_meeting(
             transcript=transcript,
             current_user=current_user,
             markers=parsed_markers,
+            personal_context=personal_context(current_user),
         )
 
     if audio and has_openai_key():
@@ -76,6 +126,7 @@ async def analyze_meeting(
             transcript=transcribed_text,
             current_user=current_user,
             markers=parsed_markers,
+            personal_context=personal_context(current_user),
         )
 
     return build_demo_analysis(parsed_markers)

@@ -319,6 +319,33 @@
         line-height: 1.55;
       }
 
+      .library-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .library-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        padding: 14px;
+      }
+
+      .library-item h3 {
+        margin: 0 0 5px;
+        font-size: 16px;
+      }
+
+      .profile-list {
+        display: grid;
+        gap: 8px;
+        margin-top: 10px;
+      }
+
       .task-decision {
         display: flex;
         align-items: center;
@@ -629,6 +656,7 @@
 
             <div class="button-row">
               <button class="btn btn-primary" id="analyzeBtn" type="button">生成任务清单</button>
+              <button class="btn" id="saveBtn" type="button" disabled>保存到录音库</button>
               <button class="btn btn-focus" id="focusBtn" type="button">个人重点</button>
               <button class="btn" id="pauseBtn" type="button" disabled>暂停生成</button>
               <button class="btn" id="sampleBtn" type="button">加载测试转写</button>
@@ -644,6 +672,8 @@
           <div class="tabs">
             <button class="tab active" data-tab="actions" type="button">我的待办</button>
             <button class="tab" data-tab="task-list" type="button">任务清单</button>
+            <button class="tab" data-tab="library" type="button">录音库</button>
+            <button class="tab" data-tab="profile" type="button">个人画像</button>
             <button class="tab" data-tab="focus" type="button">个人重点</button>
             <button class="tab" data-tab="all-actions" type="button">全部待办</button>
             <button class="tab" data-tab="summary" type="button">会议摘要</button>
@@ -669,10 +699,15 @@
       let focusMessage = "";
       let focusLoading = false;
       let focusController = null;
+      let currentMeetingId = "";
+      let libraryRecords = [];
+      let libraryMessage = "";
+      let profile = null;
 
       const content = document.querySelector("#content");
       const markersEl = document.querySelector("#markers");
       const analyzeBtn = document.querySelector("#analyzeBtn");
+      const saveBtn = document.querySelector("#saveBtn");
       const markBtn = document.querySelector("#markBtn");
       const sampleBtn = document.querySelector("#sampleBtn");
       const focusBtn = document.querySelector("#focusBtn");
@@ -720,6 +755,141 @@
           item.classList.toggle("active", item.dataset.tab === tabName);
         });
         render();
+      }
+
+      function currentUser() {
+        return document.querySelector("#user").value.trim();
+      }
+
+      function meetingPayload() {
+        return {
+          current_user: currentUser(),
+          transcript: document.querySelector("#transcript").value.trim(),
+          audio_name: document.querySelector("#audio").files[0]?.name || "",
+          analysis: result,
+        };
+      }
+
+      async function saveMeeting(silent = false) {
+        if (!result || !currentUser() || !document.querySelector("#transcript").value.trim()) {
+          if (!silent) generationStatus.textContent = "请先填写当前用户并生成一份包含转写的任务清单。";
+          return;
+        }
+
+        if (!silent) {
+          saveBtn.disabled = true;
+          saveBtn.textContent = "保存中...";
+        }
+        try {
+          const response = await fetch(
+            currentMeetingId ? `/api/meetings/history/${currentMeetingId}` : "/api/meetings/history",
+            {
+              method: currentMeetingId ? "PUT" : "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(meetingPayload()),
+            },
+          );
+          if (!response.ok) throw new Error("保存失败");
+          const record = await response.json();
+          currentMeetingId = record.id;
+          saveBtn.disabled = false;
+          saveBtn.textContent = "已保存到录音库";
+          if (!silent) generationStatus.textContent = "已保存到本机录音库；后续人工判断会用于个性化分析。";
+        } catch (error) {
+          if (!silent) generationStatus.textContent = "保存失败，请稍后重试。";
+          saveBtn.disabled = false;
+          saveBtn.textContent = "保存到录音库";
+        }
+      }
+
+      function updateSavedMeeting() {
+        if (currentMeetingId) void saveMeeting(true);
+      }
+
+      async function loadLibrary() {
+        const user = currentUser();
+        if (!user) {
+          libraryRecords = [];
+          libraryMessage = "先填写当前用户，才能查看这台电脑上的个人录音库。";
+          render();
+          return;
+        }
+        libraryMessage = "正在读取本机记录...";
+        render();
+        try {
+          const response = await fetch(`/api/meetings/history?current_user=${encodeURIComponent(user)}`);
+          if (!response.ok) throw new Error("读取失败");
+          libraryRecords = await response.json();
+          libraryMessage = "";
+        } catch (error) {
+          libraryMessage = "暂时无法读取本机记录。";
+        }
+        render();
+      }
+
+      async function loadProfile() {
+        const user = currentUser();
+        if (!user) {
+          profile = null;
+          render();
+          return;
+        }
+        profile = null;
+        render();
+        try {
+          const response = await fetch(`/api/meetings/profile?current_user=${encodeURIComponent(user)}`);
+          if (!response.ok) throw new Error("读取失败");
+          profile = await response.json();
+        } catch (error) {
+          profile = { error: true };
+        }
+        render();
+      }
+
+      function renderLibrary() {
+        if (libraryMessage) return `<div class="empty">${escapeHtml(libraryMessage)}</div>`;
+        if (!libraryRecords.length) {
+          return '<div class="empty">还没有保存的记录。生成任务清单后，点击“保存到录音库”。</div>';
+        }
+        return `
+          <div class="library-list">
+            ${libraryRecords.map((record) => `
+              <article class="library-item">
+                <div>
+                  <h3>${escapeHtml(record.meeting_title)}</h3>
+                  <p class="panel-note">${escapeHtml(new Date(record.updated_at).toLocaleString("zh-CN"))}${record.audio_name ? ` · ${escapeHtml(record.audio_name)}` : " · 文字转写"}</p>
+                </div>
+                <button class="btn" type="button" data-library-action="open" data-meeting-id="${escapeHtml(record.id)}">打开</button>
+              </article>
+            `).join("")}
+          </div>
+        `;
+      }
+
+      function profileItems(items, emptyText) {
+        if (!items?.length) return `<p class="panel-note">${emptyText}</p>`;
+        return `<div class="profile-list">${items.map((item) => `<div class="plain-card">${escapeHtml(item)}</div>`).join("")}</div>`;
+      }
+
+      function renderProfile() {
+        if (!currentUser()) return '<div class="empty">先填写当前用户，再查看个人工作画像。</div>';
+        if (!profile) return '<div class="empty">正在整理你在本机留下的人工反馈...</div>';
+        if (profile.error) return '<div class="empty">暂时无法读取个人画像。</div>';
+        return `
+          <div class="hero-metric">
+            <div class="metric"><strong>${profile.saved_meeting_count}</strong><span>已保存会议</span></div>
+            <div class="metric"><strong>${profile.confirmed_tasks.length}</strong><span>确认过的任务类型</span></div>
+            <div class="metric"><strong>${profile.excluded_tasks.length}</strong><span>排除过的任务类型</span></div>
+          </div>
+          <h2 class="panel-title">${escapeHtml(currentUser())}的个人工作画像</h2>
+          <p class="task-triage-note">只使用你在本机主动确认、排除或修改过的任务，帮助模型判断后续会议里的模糊候选项；会议原文中的明确负责人永远优先。</p>
+          <h3>通常归入我的任务</h3>
+          ${profileItems(profile.confirmed_tasks, "还没有足够的人工确认记录。")}
+          <h3 style="margin-top: 22px">通常不是我的任务</h3>
+          ${profileItems(profile.excluded_tasks, "还没有排除记录。")}
+          <h3 style="margin-top: 22px">近期协作者</h3>
+          ${profileItems(profile.collaborators, "保存并确认共同任务后会显示在这里。")}
+        `;
       }
 
       function compactText(value) {
@@ -843,6 +1013,7 @@
         });
 
         render();
+        updateSavedMeeting();
       }
 
       function taskBelongsToMe(task) {
@@ -860,6 +1031,7 @@
         });
         result.my_tasks = (result.all_tasks || []).filter(taskBelongsToMe);
         render();
+        updateSavedMeeting();
       }
 
       function updateTaskFields(key, fields) {
@@ -875,9 +1047,22 @@
 
         editingTaskKey = "";
         render();
+        updateSavedMeeting();
       }
 
       function render() {
+        if (activeTab === "library") {
+          content.innerHTML = `
+            <h2 class="panel-title">录音库</h2>
+            <p class="panel-note">记录保存在这台电脑的本地数据库中，不会自动上传或提交到 GitHub。</p>
+            <div class="list">${renderLibrary()}</div>
+          `;
+          return;
+        }
+        if (activeTab === "profile") {
+          content.innerHTML = renderProfile();
+          return;
+        }
         if (activeTab === "focus") {
           content.innerHTML = renderFocusWorkspace();
           return;
@@ -1084,6 +1269,9 @@
           if (!response.ok) throw new Error("会议分析失败");
           result = await response.json();
           resultUser = analysisUser;
+          currentMeetingId = "";
+          saveBtn.disabled = false;
+          saveBtn.textContent = "保存到录音库";
           activateTab("task-list");
           render();
           generationStatus.textContent = "";
@@ -1105,6 +1293,10 @@
         analysisController?.abort();
       });
 
+      saveBtn.addEventListener("click", () => {
+        void saveMeeting();
+      });
+
       focusBtn.addEventListener("click", () => {
         activateTab("focus");
         content.querySelector("#focusQuery")?.focus();
@@ -1113,10 +1305,38 @@
       document.querySelectorAll(".tab").forEach((tab) => {
         tab.addEventListener("click", () => {
           activateTab(tab.dataset.tab);
+          if (tab.dataset.tab === "library") void loadLibrary();
+          if (tab.dataset.tab === "profile") void loadProfile();
         });
       });
 
       content.addEventListener("click", (event) => {
+        const libraryButton = event.target.closest("[data-library-action]");
+        if (libraryButton?.dataset.libraryAction === "open") {
+          const user = currentUser();
+          const meetingId = libraryButton.dataset.meetingId;
+          fetch(`/api/meetings/history/${meetingId}?current_user=${encodeURIComponent(user)}`)
+            .then(async (response) => {
+              if (!response.ok) throw new Error("读取失败");
+              return response.json();
+            })
+            .then((record) => {
+              result = record.analysis;
+              resultUser = record.current_user;
+              currentMeetingId = record.id;
+              document.querySelector("#user").value = record.current_user;
+              document.querySelector("#transcript").value = record.transcript;
+              saveBtn.disabled = false;
+              saveBtn.textContent = "已保存到录音库";
+              activateTab("task-list");
+            })
+            .catch(() => {
+              libraryMessage = "打开记录失败，请稍后重试。";
+              render();
+            });
+          return;
+        }
+
         const focusActionButton = event.target.closest("[data-focus-action]");
         if (focusActionButton) {
           const focusAction = focusActionButton.dataset.focusAction;
