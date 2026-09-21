@@ -42,6 +42,9 @@ class MeetingAnalysisTests(unittest.TestCase):
         self.assertIn("技术流程", result.sources[0].evidence)
         self.assertEqual(result.sources[0].source, "06:03")
         self.assertIn("今晚", result.sources[1].evidence)
+        self.assertIn("阿哲表示", result.answer)
+        self.assertIn("今晚", result.answer)
+        self.assertNotIn("这个你之后", result.answer)
 
     def test_focus_citations_reconstruct_original_turns(self):
         result = normalize_focus_analysis(
@@ -86,6 +89,17 @@ class MeetingAnalysisTests(unittest.TestCase):
         self.assertEqual(result["all_tasks"][2]["assignee"], "小林、小周")
         self.assertEqual(result["my_tasks"][0]["source"], "09:01")
         self.assertEqual(result["my_tasks"][1]["source"], "08:06")
+
+    def test_task_titles_are_short_actions_not_transcript_sentences(self):
+        data = {"all_tasks": [task(
+            "小万：我这边把产品流程先画出来，再想一下 Demo 怎么呈现。",
+            "小万",
+            "小万：我这边把产品流程先画出来，再想一下 Demo 怎么呈现。我们明天再对一版。",
+            "明天",
+        )]}
+        result = normalize_llm_analysis(data, TRANSCRIPT, "小万", None)
+        self.assertEqual(result["all_tasks"][0]["task"], "画出产品流程")
+        self.assertLessEqual(len(result["all_tasks"][0]["task"]), 14)
 
     def test_joint_task_is_visible_for_each_owner_only(self):
         data = {"all_tasks": [task("整理访谈证据", "小林、小周", "小万：然后小林和小周可以把访谈或者问卷再看一下，找证据支持需求。") ]}
@@ -135,7 +149,7 @@ class MeetingAnalysisTests(unittest.TestCase):
         result = build_local_transcript_analysis("09:01 小林：我今晚整理访谈证据。", "小万")
         self.assertEqual(result.my_tasks, [])
         self.assertEqual(result.all_tasks[0].assignee, "小林")
-        self.assertEqual(result.all_tasks[0].task, "我今晚整理访谈证据")
+        self.assertEqual(result.all_tasks[0].task, "整理访谈证据")
 
     def test_identical_quotes_keep_the_named_speaker(self):
         lines = ["小林：我今晚整理访谈证据。", "小万：我今晚整理访谈证据。"]

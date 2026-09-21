@@ -310,6 +310,43 @@
         box-shadow: 0 4px 12px rgba(31, 49, 82, 0.04);
       }
 
+      .task-triage-note {
+        margin: 0 0 16px;
+        border-left: 4px solid var(--green);
+        background: #f2fbf7;
+        padding: 13px 14px;
+        color: #31536a;
+        line-height: 1.55;
+      }
+
+      .task-decision {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+        padding-top: 14px;
+        border-top: 1px solid var(--line);
+      }
+
+      .task-decision-note {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .btn-claim {
+        border-color: #67cfae;
+        background: var(--green-soft);
+        color: var(--green);
+      }
+
+      .btn-claim:hover:not(:disabled) {
+        border-color: #35af86;
+        background: #d9f5e9;
+      }
+
       .task-top {
         display: flex;
         align-items: flex-start;
@@ -591,7 +628,7 @@
             </div>
 
             <div class="button-row">
-              <button class="btn btn-primary" id="analyzeBtn" type="button">生成我的纪要</button>
+              <button class="btn btn-primary" id="analyzeBtn" type="button">生成任务清单</button>
               <button class="btn btn-focus" id="focusBtn" type="button">个人重点</button>
               <button class="btn" id="pauseBtn" type="button" disabled>暂停生成</button>
               <button class="btn" id="sampleBtn" type="button">加载测试转写</button>
@@ -606,6 +643,7 @@
         <section class="panel">
           <div class="tabs">
             <button class="tab active" data-tab="actions" type="button">我的待办</button>
+            <button class="tab" data-tab="task-list" type="button">任务清单</button>
             <button class="tab" data-tab="focus" type="button">个人重点</button>
             <button class="tab" data-tab="all-actions" type="button">全部待办</button>
             <button class="tab" data-tab="summary" type="button">会议摘要</button>
@@ -807,6 +845,23 @@
         render();
       }
 
+      function taskBelongsToMe(task) {
+        if (task.personal === true) return true;
+        if (task.personal === false) return false;
+        return task.assignee.split(/[、，,和与及\s]+/).includes(resultUser);
+      }
+
+      function setTaskPersonal(key, isMine) {
+        if (!result) return;
+        (result.all_tasks || []).forEach((task) => {
+          if (taskKey(task) === key) {
+            task.personal = isMine;
+          }
+        });
+        result.my_tasks = (result.all_tasks || []).filter(taskBelongsToMe);
+        render();
+      }
+
       function updateTaskFields(key, fields) {
         if (!result) return;
 
@@ -832,12 +887,10 @@
           return;
         }
         if (Array.isArray(result.all_tasks)) {
-          result.my_tasks = result.all_tasks.filter((task) =>
-            task.assignee.split(/[、，,和与及\s]+/).includes(resultUser),
-          );
+          result.my_tasks = result.all_tasks.filter(taskBelongsToMe);
         }
 
-        function taskCards(tasks) {
+        function taskCards(tasks, mode = "default") {
           if (!tasks || tasks.length === 0) {
             return '<div class="empty">没有识别到明确待办。</div>';
           }
@@ -847,6 +900,12 @@
               (task) => {
                 const key = taskKey(task);
                 const isEditing = editingTaskKey === key;
+                const isTriage = mode === "triage";
+                const decisionNote = task.personal === true
+                  ? "已归入我的待办"
+                  : task.personal === false
+                    ? "已标记为不是我的任务"
+                    : "系统根据负责人做了初步判断，请你确认";
 
                 return `
                 <article class="task-card">
@@ -874,16 +933,26 @@
                       `
                       : ""
                   }
-                  <div class="button-row" style="margin-top: 12px">
-                    ${
-                      isEditing
-                        ? `<button class="btn" type="button" data-task-action="save" data-task-key="${key}">保存</button>
-                           <button class="btn" type="button" data-task-action="cancel-edit" data-task-key="${key}">取消</button>`
-                        : `<button class="btn" type="button" data-task-action="confirm" data-task-key="${key}">确认任务</button>
-                           <button class="btn" type="button" data-task-action="edit" data-task-key="${key}">修改</button>
-                           <button class="btn" type="button" data-task-action="ignore" data-task-key="${key}">忽略</button>`
-                    }
-                  </div>
+                  ${
+                    isTriage
+                      ? `<div class="task-decision">
+                           <p class="task-decision-note">${decisionNote}</p>
+                           <div class="button-row">
+                             <button class="btn btn-claim" type="button" data-task-action="claim" data-task-key="${key}">是我的</button>
+                             <button class="btn" type="button" data-task-action="reject" data-task-key="${key}">不是我的</button>
+                           </div>
+                         </div>`
+                      : `<div class="button-row" style="margin-top: 12px">
+                           ${
+                             isEditing
+                               ? `<button class="btn" type="button" data-task-action="save" data-task-key="${key}">保存</button>
+                                  <button class="btn" type="button" data-task-action="cancel-edit" data-task-key="${key}">取消</button>`
+                               : `<button class="btn" type="button" data-task-action="confirm" data-task-key="${key}">确认任务</button>
+                                  <button class="btn" type="button" data-task-action="edit" data-task-key="${key}">修改</button>
+                                  <button class="btn" type="button" data-task-action="ignore" data-task-key="${key}">忽略</button>`
+                           }
+                         </div>`
+                  }
                 </article>
               `;
               },
@@ -907,6 +976,24 @@
               `,
             )
             .join("");
+        }
+
+        if (activeTab === "task-list") {
+          const allTasks = result.all_tasks || result.my_tasks;
+          const reviewCount = allTasks.filter((task) => task.personal === undefined).length;
+          content.innerHTML = `
+            <div class="hero-metric">
+              <div class="metric"><strong>${result.my_tasks.length}</strong><span>已归入我的待办</span></div>
+              <div class="metric"><strong>${allTasks.length}</strong><span>候选任务</span></div>
+              <div class="metric"><strong>${reviewCount}</strong><span>待你确认</span></div>
+            </div>
+            <h2 class="panel-title">任务清单</h2>
+            <p class="task-triage-note">先快速判断每条候选任务是不是你的。你的选择会覆盖系统对负责人的初始判断，并即时同步到“我的待办”。</p>
+            <div class="task-list">
+              ${taskCards(allTasks, "triage")}
+            </div>
+          `;
+          return;
         }
 
         if (activeTab === "actions" || activeTab === "all-actions") {
@@ -997,6 +1084,7 @@
           if (!response.ok) throw new Error("会议分析失败");
           result = await response.json();
           resultUser = analysisUser;
+          activateTab("task-list");
           render();
           generationStatus.textContent = "";
         } catch (error) {
@@ -1007,7 +1095,7 @@
           }
         } finally {
           analyzeBtn.disabled = false;
-          analyzeBtn.textContent = "生成我的纪要";
+          analyzeBtn.textContent = "生成任务清单";
           pauseBtn.disabled = true;
           analysisController = null;
         }
@@ -1135,6 +1223,11 @@
 
         const action = button.dataset.taskAction;
         const key = button.dataset.taskKey;
+
+        if (action === "claim" || action === "reject") {
+          setTaskPersonal(key, action === "claim");
+          return;
+        }
 
         if (action === "confirm" || action === "ignore") {
           updateTaskStatus(key, action === "confirm" ? "已确认" : "已忽略");
