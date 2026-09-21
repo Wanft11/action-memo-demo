@@ -1,0 +1,18 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.DS_Store
+
+# Local artifacts that are not part of the Action Memo demo.
+.ppt-build/
+output/
+reference_pdf_render/
+rendered_*/
+*.docx
+*.pptx
+*.pdf
+~$*
