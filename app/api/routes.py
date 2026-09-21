@@ -24,7 +24,7 @@ def health() -> dict[str, str]:
 async def analyze_meeting(
     audio: UploadFile | None = File(default=None),
     transcript: str = Form(default=""),
-    current_user: str = Form(default="王同学"),
+    current_user: str = Form(default=""),
     markers: str = Form(default="[]"),
 ) -> MeetingAnalysis:
     parsed_markers = [

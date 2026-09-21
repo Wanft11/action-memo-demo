@@ -349,7 +349,7 @@
           <div class="controls">
             <div class="field">
               <label for="user">当前用户</label>
-              <input class="input" id="user" value="王同学" />
+              <input class="input" id="user" placeholder="例如：小万" />
             </div>
 
             <div class="field">
@@ -592,7 +592,7 @@
         const audio = document.querySelector("#audio").files[0];
         if (audio) formData.append("audio", audio);
         formData.append("transcript", document.querySelector("#transcript").value);
-        const analysisUser = document.querySelector("#user").value.trim() || "王同学";
+        const analysisUser = document.querySelector("#user").value.trim();
         formData.append("current_user", analysisUser);
         formData.append("markers", JSON.stringify(markers));
 
