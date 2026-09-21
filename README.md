@@ -19,7 +19,7 @@ Action Memo is a hackathon MVP for soundcore Work 3200. It turns a meeting recor
 ## Run locally
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/Wanft11/action-memo-demo.git
 cd action-memo-demo
 python3 -m venv .venv
 source .venv/bin/activate
