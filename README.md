@@ -76,6 +76,21 @@ Demo 页面有“加载测试转写”按钮，点击后会填入仓库自带的
 
 生成任务清单后点击“保存到录音库”，转写、分析结果和你对任务做出的“是我的 / 不是我的”判断会保存在本机 `.action-memo/action_memo.db`。打开“个人画像”可查看这些人工反馈；下一次调用 AI 分析时，它会作为辅助上下文判断模糊任务，但不会覆盖会议原文中明确的负责人。该目录已被 Git 忽略，不会自动上传到 GitHub。
 
+### 安装团队共享的脱敏测试库
+
+仓库中的 `static/samples/action_memo_demo.db` 是一份脱敏测试数据库，包含两场虚构会议和预置的任务判断，不含任何本机真实记录或音频。队友可在项目根目录执行：
+
+```bash
+mkdir -p .action-memo
+cp static/samples/action_memo_demo.db .action-memo/action_memo.db
+```
+
+然后刷新 Demo，在“当前用户”填写 `演示用户`，打开“录音库”或“个人画像”即可查看相同的测试状态。这会覆盖该电脑已有的本机测试库；如需重新生成仓库版本，执行：
+
+```bash
+.venv/bin/python scripts/create_demo_database.py
+```
+
 ## 团队协作
 
 仓库目前是私有的。先由仓库管理员在 GitHub 的 `Settings → Collaborators` 邀请队友，接受邀请后即可访问和提交代码。
