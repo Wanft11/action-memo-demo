@@ -6,15 +6,18 @@
     <title>Action Memo Demo</title>
     <style>
       :root {
-        --bg: #f7f8fb;
+        --bg: #f3f6fb;
         --panel: #ffffff;
-        --ink: #172033;
-        --muted: #667085;
-        --line: #d9dee8;
-        --blue: #2157ff;
-        --green: #14845d;
-        --amber: #b65c00;
-        --shadow: 0 18px 50px rgba(23, 32, 51, 0.08);
+        --ink: #15213b;
+        --muted: #65728a;
+        --line: #dce3ef;
+        --blue: #315efb;
+        --blue-soft: #eef2ff;
+        --green: #087f5b;
+        --green-soft: #e8f8f1;
+        --amber: #ae5a00;
+        --amber-soft: #fff4e5;
+        --shadow: 0 12px 32px rgba(31, 49, 82, 0.08);
       }
 
       * {
@@ -25,7 +28,7 @@
         margin: 0;
         background: var(--bg);
         color: var(--ink);
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       }
 
       button,
@@ -35,9 +38,9 @@
       }
 
       .shell {
-        max-width: 1200px;
+        max-width: 1280px;
         margin: 0 auto;
-        padding: 28px;
+        padding: 30px 28px 44px;
       }
 
       .topbar {
@@ -45,47 +48,64 @@
         align-items: center;
         justify-content: space-between;
         gap: 20px;
-        margin-bottom: 22px;
+        margin-bottom: 24px;
+        padding-bottom: 22px;
+        border-bottom: 1px solid var(--line);
       }
 
       .brand {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 14px;
       }
 
       .device-dot {
-        width: 42px;
-        height: 42px;
+        position: relative;
+        width: 46px;
+        height: 46px;
+        border-radius: 8px;
+        background: #172a55;
+        box-shadow: 0 8px 18px rgba(23, 42, 85, 0.2);
+      }
+
+      .device-dot::before {
+        content: "";
+        position: absolute;
+        inset: 12px;
         border-radius: 50%;
-        background: radial-gradient(circle at 32% 28%, #eef3ff, #1c2537 72%);
-        box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.45);
+        background: #74e3c3;
+        box-shadow: 0 0 0 5px rgba(116, 227, 195, 0.14);
       }
 
       h1 {
         margin: 0;
-        font-size: 28px;
+        font-size: 30px;
+        line-height: 1;
         letter-spacing: 0;
       }
 
       .subtitle {
-        margin: 4px 0 0;
+        margin: 7px 0 0;
         color: var(--muted);
+        font-size: 14px;
       }
 
       .status-pill {
-        border: 1px solid var(--line);
+        border: 1px solid #bdebd9;
         border-radius: 999px;
-        background: #fff;
+        background: var(--green-soft);
         padding: 8px 12px;
         color: var(--green);
+        font-size: 14px;
+        font-weight: 750;
         white-space: nowrap;
       }
 
       .grid {
         display: grid;
-        grid-template-columns: 410px 1fr;
-        gap: 18px;
+        grid-template-columns: minmax(340px, 390px) minmax(0, 1fr);
+        gap: 20px;
+        align-items: start;
       }
 
       .panel {
@@ -96,12 +116,12 @@
       }
 
       .panel-header {
-        padding: 18px 18px 0;
+        padding: 20px 20px 0;
       }
 
       .panel-title {
-        margin: 0 0 4px;
-        font-size: 18px;
+        margin: 0 0 6px;
+        font-size: 19px;
       }
 
       .panel-note {
@@ -111,33 +131,43 @@
       }
 
       .controls {
-        padding: 18px;
+        padding: 20px;
         display: grid;
-        gap: 14px;
+        gap: 16px;
       }
 
       .field {
         display: grid;
-        gap: 8px;
+        gap: 7px;
       }
 
       .field label {
-        color: #39445a;
+        color: #3e4c67;
         font-weight: 650;
+        font-size: 14px;
       }
 
       .input,
       textarea {
         width: 100%;
-        border: 1px solid var(--line);
+        border: 1px solid #cbd5e5;
         border-radius: 8px;
-        background: #fff;
+        background: #fbfcff;
         color: var(--ink);
-        padding: 11px 12px;
+        padding: 12px;
+        transition: border-color 160ms ease, box-shadow 160ms ease;
+      }
+
+      .input:focus,
+      textarea:focus {
+        outline: none;
+        border-color: var(--blue);
+        box-shadow: 0 0 0 3px rgba(49, 94, 251, 0.14);
+        background: #fff;
       }
 
       textarea {
-        min-height: 185px;
+        min-height: 210px;
         resize: vertical;
         line-height: 1.55;
       }
@@ -145,51 +175,66 @@
       .button-row {
         display: flex;
         flex-wrap: wrap;
-        gap: 10px;
+        gap: 8px;
       }
 
       .btn {
-        border: 1px solid var(--line);
+        border: 1px solid #cbd5e5;
         border-radius: 8px;
         background: #fff;
         color: var(--ink);
         cursor: pointer;
-        min-height: 42px;
-        padding: 0 14px;
+        min-height: 40px;
+        padding: 0 13px;
         font-weight: 700;
+        transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+      }
+
+      .btn:hover:not(:disabled) {
+        border-color: #9db2df;
+        background: #f7f9fd;
+        transform: translateY(-1px);
       }
 
       .btn-primary {
         background: var(--blue);
         border-color: var(--blue);
         color: #fff;
+        box-shadow: 0 7px 15px rgba(49, 94, 251, 0.22);
+      }
+
+      .btn-primary:hover:not(:disabled) {
+        background: #2449d7;
+        border-color: #2449d7;
       }
 
       .btn:disabled {
-        cursor: wait;
-        opacity: 0.7;
+        cursor: not-allowed;
+        opacity: 0.52;
       }
 
       .markers {
         display: grid;
-        gap: 8px;
+        gap: 7px;
       }
 
       .marker {
         display: flex;
         justify-content: space-between;
         gap: 10px;
-        border: 1px solid #d8e2ff;
-        background: #f5f7ff;
+        border: 1px solid #d9e4ff;
+        background: var(--blue-soft);
         border-radius: 8px;
         padding: 10px 12px;
+        font-size: 14px;
       }
 
       .tabs {
         display: flex;
-        gap: 8px;
+        gap: 4px;
         border-bottom: 1px solid var(--line);
-        padding: 14px 16px 0;
+        padding: 12px 18px 0;
+        overflow-x: auto;
       }
 
       .tab {
@@ -197,10 +242,11 @@
         border-bottom: 3px solid transparent;
         border-radius: 0;
         background: transparent;
-        padding: 10px 8px;
+        padding: 11px 10px;
         color: var(--muted);
         cursor: pointer;
         font-weight: 700;
+        white-space: nowrap;
       }
 
       .tab.active {
@@ -209,44 +255,48 @@
       }
 
       .content {
-        padding: 18px;
+        padding: 20px;
       }
 
       .hero-metric {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 12px;
-        margin-bottom: 16px;
+        gap: 10px;
+        margin-bottom: 20px;
       }
 
       .metric {
         border: 1px solid var(--line);
+        border-top: 3px solid var(--blue);
         border-radius: 8px;
-        padding: 14px;
-        background: #fbfcff;
+        padding: 13px 14px;
+        background: #fff;
       }
 
       .metric strong {
         display: block;
-        font-size: 24px;
+        font-size: 26px;
+        line-height: 1.15;
       }
 
       .metric span {
         color: var(--muted);
+        font-size: 13px;
       }
 
       .task-list,
       .list {
         display: grid;
-        gap: 12px;
-        margin-top: 14px;
+        gap: 10px;
+        margin-top: 12px;
       }
 
       .task-card {
-        border: 1px solid var(--line);
+        border: 1px solid #d8e0ec;
         border-radius: 8px;
         padding: 16px;
         background: #fff;
+        box-shadow: 0 4px 12px rgba(31, 49, 82, 0.04);
       }
 
       .task-top {
@@ -258,39 +308,49 @@
 
       .task-title {
         margin: 0;
-        font-size: 17px;
+        font-size: 18px;
+        line-height: 1.35;
       }
 
       .badge {
         border-radius: 999px;
-        background: #fff7ed;
+        background: var(--amber-soft);
         color: var(--amber);
         padding: 5px 9px;
         font-size: 13px;
+        font-weight: 750;
         white-space: nowrap;
       }
 
       .meta {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
-        margin: 12px 0;
+        gap: 6px 14px;
+        margin: 13px 0;
         color: var(--muted);
+        font-size: 14px;
+      }
+
+      .meta b {
+        color: #43516d;
+        font-weight: 700;
+        margin-right: 4px;
       }
 
       .quote {
         margin: 0;
-        border-left: 3px solid var(--blue);
+        border-left: 3px solid #7a9bff;
         background: #f5f7ff;
-        padding: 10px 12px;
-        color: #39445a;
+        padding: 11px 12px;
+        color: #46546f;
         line-height: 1.55;
+        font-size: 14px;
       }
 
       .plain-card {
         border: 1px solid var(--line);
         border-radius: 8px;
-        padding: 13px 14px;
+        padding: 14px;
         background: #fff;
         line-height: 1.6;
       }
@@ -305,14 +365,14 @@
         color: var(--muted);
         border: 1px dashed var(--line);
         border-radius: 8px;
-        padding: 28px;
+        padding: 32px 20px;
         text-align: center;
-        background: #fbfcff;
+        background: #f9fbff;
       }
 
       @media (max-width: 900px) {
         .shell {
-          padding: 18px;
+          padding: 20px 16px 32px;
         }
 
         .grid,
@@ -325,6 +385,36 @@
           flex-direction: column;
         }
       }
+
+      @media (max-width: 560px) {
+        h1 {
+          font-size: 27px;
+        }
+
+        .panel-header,
+        .controls,
+        .content {
+          padding-left: 16px;
+          padding-right: 16px;
+        }
+
+        .tabs {
+          padding-left: 12px;
+          padding-right: 12px;
+        }
+
+        .button-row .btn {
+          flex: 1 1 calc(50% - 4px);
+        }
+
+        .button-row .btn-primary {
+          flex-basis: 100%;
+        }
+
+        .task-top {
+          gap: 8px;
+        }
+      }
     </style>
   </head>
   <body>
@@ -334,7 +424,7 @@
           <div class="device-dot" aria-hidden="true"></div>
           <div>
             <h1>Action Memo</h1>
-            <p class="subtitle">把 soundcore Work 3200 的录音变成个人行动清单</p>
+            <p class="subtitle">录音豆 · 你的下一步行动，一眼看清</p>
           </div>
         </div>
         <div class="status-pill">设备状态：录音豆在线</div>
@@ -363,10 +453,10 @@
             </div>
 
             <div class="button-row">
-              <button class="btn" id="sampleBtn" type="button">加载测试转写</button>
-              <button class="btn" id="markBtn" type="button">添加重点标记</button>
               <button class="btn btn-primary" id="analyzeBtn" type="button">生成我的纪要</button>
               <button class="btn" id="pauseBtn" type="button" disabled>暂停生成</button>
+              <button class="btn" id="sampleBtn" type="button">加载测试转写</button>
+              <button class="btn" id="markBtn" type="button">添加重点标记</button>
             </div>
             <p class="panel-note" id="generationStatus" aria-live="polite"></p>
 
@@ -488,9 +578,9 @@
                     <span class="badge">${task.status}</span>
                   </div>
                   <div class="meta">
-                    <span>负责人：${task.assignee}</span>
-                    <span>截止：${task.deadline}</span>
-                    <span>置信度：${Math.round(task.confidence * 100)}%</span>
+                    <span><b>负责人</b>${task.assignee}</span>
+                    <span><b>截止</b>${task.deadline}</span>
+                    <span><b>置信度</b>${Math.round(task.confidence * 100)}%</span>
                   </div>
                   <p class="quote"><strong>来源片段｜${task.source}</strong><br>${task.evidence}</p>
                   ${
