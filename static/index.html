@@ -466,6 +466,54 @@
         gap: 8px;
       }
 
+      .native-file-input {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+
+      .file-picker {
+        display: flex;
+        align-items: center;
+        min-height: 48px;
+        gap: 11px;
+        border: 1px solid #dfe3ea;
+        border-radius: 8px;
+        background: #fafbfc;
+        padding: 7px;
+        cursor: pointer;
+        transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+      }
+
+      .file-picker:hover,
+      .file-picker:focus-within {
+        border-color: #82a7ff;
+        background: #fff;
+        box-shadow: 0 0 0 3px rgba(51, 112, 255, 0.12);
+      }
+
+      .file-picker-button {
+        flex: 0 0 auto;
+        border-radius: 6px;
+        background: linear-gradient(105deg, #edf3ff, #f3efff);
+        padding: 8px 11px;
+        color: #3d61c9;
+        font-size: 14px;
+        font-weight: 750;
+      }
+
+      .file-picker-name {
+        min-width: 0;
+        overflow: hidden;
+        color: var(--muted);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
       .folder-hint {
         margin: 0;
         color: var(--muted);
@@ -992,19 +1040,23 @@
             </div>
 
             <div class="field">
-              <label for="folder">保存场景</label>
+              <label for="folder">归档文件夹</label>
               <div class="folder-select-row">
                 <select class="input" id="folder" disabled>
                   <option>填写账号后加载文件夹</option>
                 </select>
                 <button class="btn" id="newFolderBtn" type="button" disabled>新建</button>
               </div>
-              <p class="folder-hint" id="folderHint">未选择时会自动保存到默认文件夹。</p>
+              <p class="folder-hint" id="folderHint">不选择时将自动归档到默认文件夹。</p>
             </div>
 
             <div class="field">
               <label for="audio">录音文件</label>
-              <input class="input" id="audio" type="file" accept="audio/*,video/mp4,.mp3,.mp4,.mpeg,.mpga,.m4a,.wav,.webm" />
+              <label class="file-picker" for="audio">
+                <span class="file-picker-button">选择录音</span>
+                <span class="file-picker-name" id="audioFileName">尚未选择录音文件</span>
+              </label>
+              <input class="native-file-input" id="audio" type="file" accept="audio/*,video/mp4,.mp3,.mp4,.mpeg,.mpga,.m4a,.wav,.webm" />
             </div>
 
             <div class="field">
@@ -1152,6 +1204,8 @@
       const newFolderBtn = document.querySelector("#newFolderBtn");
       const folderDialog = document.querySelector("#folderDialog");
       const folderForm = document.querySelector("#folderForm");
+      const audioInput = document.querySelector("#audio");
+      const audioFileName = document.querySelector("#audioFileName");
       const focusBtn = document.querySelector("#focusBtn");
       const pauseBtn = document.querySelector("#pauseBtn");
       const generationStatus = document.querySelector("#generationStatus");
@@ -1214,7 +1268,7 @@
           `<option value="${item.id}" ${item.id === selectedFolderId ? "selected" : ""}>${escapeHtml(item.name)}${item.is_default ? "（默认）" : ""}</option>`,
         ).join("");
         if (!folder) {
-          folderHint.textContent = "未选择时会自动保存到默认文件夹。";
+          folderHint.textContent = "不选择时将自动归档到默认文件夹。";
           return;
         }
         const description = [
@@ -1907,6 +1961,11 @@
         selectedFolderId = folderSelect.value;
         renderFolderSelect();
         if (activeTab === "library") void loadLibrary();
+      });
+
+      audioInput.addEventListener("change", () => {
+        const file = audioInput.files[0];
+        audioFileName.textContent = file ? file.name : "尚未选择录音文件";
       });
 
       document.querySelector("#user").addEventListener("change", () => {
