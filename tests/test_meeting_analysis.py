@@ -2,6 +2,7 @@ import re
 import unittest
 from pathlib import Path
 
+from app.models.meeting import MeetingMarker
 from app.services.meeting_analyzer import (
     build_local_focus_analysis,
     build_local_transcript_analysis,
@@ -72,6 +73,7 @@ class MeetingAnalysisTests(unittest.TestCase):
         self.assertGreaterEqual(len(turns), 50)
         self.assertIn("万哥：我还没填，等会提醒我。", sample)
         self.assertIn("阿哲：可以，我今晚弄一下。", sample)
+        self.assertNotIn("网页按钮模拟重点标记", sample)
 
     def test_optional_demo_samples_are_parseable(self):
         sample_dir = Path(__file__).resolve().parents[1] / "static" / "samples"
@@ -96,6 +98,13 @@ class MeetingAnalysisTests(unittest.TestCase):
             self.assertTrue(speaker_lines, sample_path.name)
             for line in speaker_lines:
                 self.assertRegex(line, r"^\d{2}:\d{2}\s+[^：]+：", line)
+
+    def test_recording_bean_marker_is_preserved_with_the_transcript(self):
+        marker = MeetingMarker(time="09:01", note="录音豆按压", source="recording_bean")
+        result = build_local_transcript_analysis(TRANSCRIPT, "小万", [marker])
+
+        self.assertEqual(result.marked_moments[0].time, "09:01")
+        self.assertEqual(result.marked_moments[0].source, "recording_bean")
 
     def test_explicit_meeting_subject_replaces_model_title(self):
         transcript = "会议主题：录音豆预赛方案讨论\n小万：今天确定分工。"

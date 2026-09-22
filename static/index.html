@@ -266,6 +266,23 @@
         font-size: 14px;
       }
 
+      .device-marker-summary {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 38px;
+        border-left: 3px solid #6e77ff;
+        background: linear-gradient(100deg, #f4f5ff, #f5fbff);
+        padding: 9px 11px;
+        color: #4b5672;
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .device-marker-summary strong {
+        color: #5b63d8;
+      }
+
       .tabs {
         display: flex;
         gap: 2px;
@@ -748,6 +765,26 @@
         line-height: 1.6;
       }
 
+      .transcript-line--marked {
+        margin: 7px 0;
+        border: 1px solid #cfd6ff;
+        border-left: 4px solid #7179ff;
+        border-radius: 8px;
+        background: linear-gradient(105deg, #f6f5ff, #f4fbff);
+        padding: 12px;
+      }
+
+      .transcript-marker-label {
+        display: inline-block;
+        margin: 0 0 6px;
+        border-radius: 999px;
+        background: #e5e7ff;
+        color: #555dc8;
+        padding: 3px 7px;
+        font-size: 12px;
+        font-weight: 750;
+      }
+
       .empty {
         color: var(--muted);
         border: 1px dashed var(--line);
@@ -981,11 +1018,10 @@
               <button class="btn btn-focus" id="focusBtn" type="button">个人重点</button>
               <button class="btn" id="pauseBtn" type="button" disabled>暂停生成</button>
               <button class="btn" id="sampleBtn" type="button">加载测试转写</button>
-              <button class="btn" id="markBtn" type="button">添加重点标记</button>
             </div>
             <p class="panel-note" id="generationStatus" aria-live="polite"></p>
 
-            <div class="markers" id="markers"></div>
+            <div class="device-marker-summary" id="markers">录音豆重点会在设备按压后自动同步到这里。</div>
           </div>
         </section>
 
@@ -1075,6 +1111,10 @@
           detail: "10 分钟 · 产品定位、Demo 分工与报名表提醒",
           user: "小万",
           folder: { name: "工作沟通", keywords: ["产品", "Demo", "同事"], aliases: ["万哥"] },
+          markers: [
+            { time: "08:22", note: "临时报名表提醒" },
+            { time: "09:17", note: "会议分工总结" },
+          ],
         },
         {
           file: "client-follow-up-meeting.txt",
@@ -1082,6 +1122,10 @@
           detail: "8 分钟 · 客户反馈、报价材料与下次演示安排",
           user: "小万",
           folder: { name: "客户沟通", keywords: ["客户", "报价", "续费"], aliases: ["王老师", "万哥"] },
+          markers: [
+            { time: "02:35", note: "报价单承诺" },
+            { time: "03:50", note: "下次沟通安排" },
+          ],
         },
         {
           file: "campus-event-planning.txt",
@@ -1089,6 +1133,10 @@
           detail: "7 分钟 · 出行准备、孩子安排与天气提醒",
           user: "小万",
           folder: { name: "家庭生活", keywords: ["孩子", "家长", "周末"], aliases: ["爸爸", "儿子"] },
+          markers: [
+            { time: "02:30", note: "孩子的请假提醒" },
+            { time: "05:05", note: "家庭准备事项总结" },
+          ],
         },
       ];
 
@@ -1096,7 +1144,6 @@
       const markersEl = document.querySelector("#markers");
       const analyzeBtn = document.querySelector("#analyzeBtn");
       const saveBtn = document.querySelector("#saveBtn");
-      const markBtn = document.querySelector("#markBtn");
       const sampleBtn = document.querySelector("#sampleBtn");
       const sampleDialog = document.querySelector("#sampleDialog");
       const sampleOptionList = document.querySelector("#sampleOptionList");
@@ -1118,26 +1165,12 @@
         setTimeout(() => pressed.classList.remove("is-pressed"), 440);
       });
 
-      function pad(value) {
-        return String(value).padStart(2, "0");
-      }
-
-      function nextTimestamp() {
-        const seconds = 65 + markers.length * 30;
-        return `${pad(Math.floor(seconds / 60))}:${pad(seconds % 60)}`;
-      }
-
       function renderMarkers() {
-        markersEl.innerHTML = markers
-          .map(
-            (marker) => `
-              <div class="marker">
-                <strong>${marker.time}</strong>
-                <span>${marker.note}</span>
-              </div>
-            `,
-          )
-          .join("");
+        if (!markers.length) {
+          markersEl.textContent = "本次尚未收到录音豆重点事件。设备按压后会自动标出对应转写片段。";
+          return;
+        }
+        markersEl.innerHTML = `<strong>录音豆已标记 ${markers.length} 处重点</strong><span>${markers.map((marker) => escapeHtml(marker.time)).join("、")}</span>`;
       }
 
       function taskKey(task) {
@@ -1542,6 +1575,15 @@
         return "pending";
       }
 
+      function renderTranscriptLine(line) {
+        const source = String(line || "").match(/^(\d{1,2}:\d{2}(?::\d{2})?)/)?.[1] || "";
+        const marker = (result?.marked_moments || []).find((item) => item.time === source);
+        return `<div class="transcript-line ${marker ? "transcript-line--marked" : ""}">
+          ${marker ? `<span class="transcript-marker-label">录音豆重点${marker.note ? ` · ${escapeHtml(marker.note)}` : ""}</span><br>` : ""}
+          ${escapeHtml(line)}
+        </div>`;
+      }
+
       function updateTaskFields(key, fields) {
         if (!result) return;
 
@@ -1741,18 +1783,10 @@
 
         content.innerHTML = `
           <h2 class="panel-title">全文转写</h2>
-          ${(result.transcript || []).map((line) => `<div class="transcript-line">${line}</div>`).join("")}
+          <p class="panel-note">带“录音豆重点”的片段来自设备按压事件，可回看用户当时主动关注的内容。</p>
+          ${(result.transcript || []).map(renderTranscriptLine).join("")}
         `;
       }
-
-      markBtn.addEventListener("click", () => {
-        markers.push({
-          label: "重点标记",
-          time: nextTimestamp(),
-          note: markers.length % 2 === 0 ? "硬件按钮模拟：这里很重要" : "跟我相关的任务",
-        });
-        renderMarkers();
-      });
 
       function renderSampleOptions() {
         sampleOptionList.innerHTML = testSamples.map((sample) => `
@@ -1772,6 +1806,13 @@
           if (!response.ok) throw new Error("测试转写加载失败");
           document.querySelector("#transcript").value = await response.text();
           document.querySelector("#user").value = sample.user;
+          markers.splice(0, markers.length, ...(sample.markers || []).map((marker) => ({
+            label: "录音豆重点",
+            time: marker.time,
+            note: marker.note,
+            source: "recording_bean",
+          })));
+          renderMarkers();
           await ensureSampleFolder(sample);
           document.querySelector("#user").focus();
           generationStatus.textContent = `已加载「${sample.title}」并选中「${selectedFolder()?.name || "默认文件夹"}」，可直接生成任务清单。`;

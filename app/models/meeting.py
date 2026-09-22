@@ -2,9 +2,10 @@ from pydantic import BaseModel, Field
 
 
 class MeetingMarker(BaseModel):
-    label: str = "重点标记"
+    label: str = "录音豆重点"
     time: str = Field(..., examples=["14:32"])
     note: str | None = None
+    source: str = "recording_bean"
 
 
 class MeetingTask(BaseModel):
