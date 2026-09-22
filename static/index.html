@@ -443,6 +443,69 @@
         margin: 16px 0;
       }
 
+      .folder-select-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px;
+      }
+
+      .folder-hint {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .folder-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        margin: 16px 0 20px;
+      }
+
+      .folder-card {
+        display: grid;
+        gap: 6px;
+        min-height: 116px;
+        border: 1px solid #e2e7f0;
+        border-radius: 8px;
+        background: #fff;
+        padding: 14px;
+        color: var(--ink);
+        cursor: pointer;
+        text-align: left;
+        transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+      }
+
+      .folder-card:hover,
+      .folder-card.active {
+        border-color: #90afff;
+        box-shadow: 0 8px 18px rgba(51, 112, 255, 0.09);
+        transform: translateY(-1px);
+      }
+
+      .folder-card.active {
+        background: linear-gradient(130deg, #f5f8ff, #f4fcf9);
+      }
+
+      .folder-card-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .folder-card strong {
+        font-size: 15px;
+      }
+
+      .folder-card span,
+      .folder-card small {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
       .profile-list {
         display: grid;
         gap: 8px;
@@ -887,8 +950,19 @@
           </div>
           <div class="controls">
             <div class="field">
-              <label for="user">当前用户</label>
+              <label for="user">我的账号</label>
               <input class="input" id="user" placeholder="例如：小万" />
+            </div>
+
+            <div class="field">
+              <label for="folder">保存场景</label>
+              <div class="folder-select-row">
+                <select class="input" id="folder" disabled>
+                  <option>填写账号后加载文件夹</option>
+                </select>
+                <button class="btn" id="newFolderBtn" type="button" disabled>新建</button>
+              </div>
+              <p class="folder-hint" id="folderHint">未选择时会自动保存到默认文件夹。</p>
             </div>
 
             <div class="field">
@@ -946,6 +1020,33 @@
       </div>
     </dialog>
 
+    <dialog class="sample-dialog" id="folderDialog" aria-labelledby="folderDialogTitle">
+      <form class="sample-dialog-content" id="folderForm">
+        <div class="sample-dialog-top">
+          <div>
+            <h2 class="sample-dialog-title" id="folderDialogTitle">新建场景文件夹</h2>
+            <p class="panel-note">同一账号在不同场景下的称呼、关键词和确认记录会分开学习。</p>
+          </div>
+          <button class="btn" type="button" data-folder-action="close">关闭</button>
+        </div>
+        <div class="field">
+          <label for="folderName">文件夹名称</label>
+          <input class="input" id="folderName" required placeholder="例如：家庭生活、客户沟通" />
+        </div>
+        <div class="field" style="margin-top: 14px">
+          <label for="folderKeywords">场景关键词</label>
+          <input class="input" id="folderKeywords" placeholder="用顿号或逗号分隔，例如：孩子、家长、周末" />
+        </div>
+        <div class="field" style="margin-top: 14px">
+          <label for="folderAliases">这个场景中对我的称呼</label>
+          <input class="input" id="folderAliases" placeholder="用顿号或逗号分隔，例如：爸爸、老万" />
+        </div>
+        <div class="button-row" style="margin-top: 18px">
+          <button class="btn btn-primary" type="submit">创建文件夹</button>
+        </div>
+      </form>
+    </dialog>
+
     <script>
       const markers = [];
       let result = null;
@@ -964,6 +1065,8 @@
       let libraryMessage = "";
       let libraryQuery = "";
       let profile = null;
+      let folders = [];
+      let selectedFolderId = "";
 
       const testSamples = [
         {
@@ -971,18 +1074,21 @@
           title: "录音豆预赛方案讨论",
           detail: "10 分钟 · 产品定位、Demo 分工与报名表提醒",
           user: "小万",
+          folder: { name: "工作沟通", keywords: ["产品", "Demo", "同事"], aliases: ["万哥"] },
         },
         {
           file: "client-follow-up-meeting.txt",
           title: "客户需求回访",
           detail: "8 分钟 · 客户反馈、报价材料与下次演示安排",
-          user: "李然",
+          user: "小万",
+          folder: { name: "客户沟通", keywords: ["客户", "报价", "续费"], aliases: ["王老师", "万哥"] },
         },
         {
           file: "campus-event-planning.txt",
-          title: "校园活动筹备沟通",
-          detail: "7 分钟 · 场地、海报、报名物料与现场分工",
-          user: "陈诺",
+          title: "家庭周末出行安排",
+          detail: "7 分钟 · 出行准备、孩子安排与天气提醒",
+          user: "小万",
+          folder: { name: "家庭生活", keywords: ["孩子", "家长", "周末"], aliases: ["爸爸", "儿子"] },
         },
       ];
 
@@ -994,6 +1100,11 @@
       const sampleBtn = document.querySelector("#sampleBtn");
       const sampleDialog = document.querySelector("#sampleDialog");
       const sampleOptionList = document.querySelector("#sampleOptionList");
+      const folderSelect = document.querySelector("#folder");
+      const folderHint = document.querySelector("#folderHint");
+      const newFolderBtn = document.querySelector("#newFolderBtn");
+      const folderDialog = document.querySelector("#folderDialog");
+      const folderForm = document.querySelector("#folderForm");
       const focusBtn = document.querySelector("#focusBtn");
       const pauseBtn = document.querySelector("#pauseBtn");
       const generationStatus = document.querySelector("#generationStatus");
@@ -1054,11 +1165,78 @@
         return document.querySelector("#user").value.trim();
       }
 
+      function selectedFolder() {
+        return folders.find((folder) => folder.id === selectedFolderId) || null;
+      }
+
+      function splitTags(value) {
+        return String(value || "").split(/[、，,\n]/).map((item) => item.trim()).filter(Boolean);
+      }
+
+      function renderFolderSelect() {
+        const folder = selectedFolder();
+        folderSelect.disabled = folders.length === 0;
+        newFolderBtn.disabled = !currentUser();
+        folderSelect.innerHTML = folders.map((item) =>
+          `<option value="${item.id}" ${item.id === selectedFolderId ? "selected" : ""}>${escapeHtml(item.name)}${item.is_default ? "（默认）" : ""}</option>`,
+        ).join("");
+        if (!folder) {
+          folderHint.textContent = "未选择时会自动保存到默认文件夹。";
+          return;
+        }
+        const description = [
+          folder.is_default ? "默认归档" : "场景归档",
+          folder.aliases?.length ? `称呼：${folder.aliases.join("、")}` : "未设置场景称呼",
+          folder.keywords?.length ? `关键词：${folder.keywords.join("、")}` : "未设置关键词",
+        ];
+        folderHint.textContent = description.join(" · ");
+      }
+
+      async function loadFolders(preferredFolderId = "") {
+        const user = currentUser();
+        if (!user) {
+          folders = [];
+          selectedFolderId = "";
+          renderFolderSelect();
+          return;
+        }
+        const response = await fetch(`/api/meetings/folders?current_user=${encodeURIComponent(user)}`);
+        if (!response.ok) throw new Error("文件夹加载失败");
+        folders = await response.json();
+        const available = new Set(folders.map((folder) => folder.id));
+        selectedFolderId = available.has(preferredFolderId) ? preferredFolderId : (available.has(selectedFolderId) ? selectedFolderId : (folders[0]?.id || ""));
+        renderFolderSelect();
+      }
+
+      async function createFolder({ name, keywords = [], aliases = [] }) {
+        const response = await fetch("/api/meetings/folders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ current_user: currentUser(), name, keywords, aliases }),
+        });
+        if (!response.ok) throw new Error("文件夹创建失败");
+        const folder = await response.json();
+        await loadFolders(folder.id);
+        return folder;
+      }
+
+      async function ensureSampleFolder(sample) {
+        if (!sample.folder) return;
+        await loadFolders();
+        let folder = folders.find((item) => item.name === sample.folder.name);
+        if (!folder) {
+          folder = await createFolder(sample.folder);
+        }
+        selectedFolderId = folder.id;
+        renderFolderSelect();
+      }
+
       function meetingPayload() {
         return {
           current_user: currentUser(),
           transcript: document.querySelector("#transcript").value.trim(),
           audio_name: document.querySelector("#audio").files[0]?.name || "",
+          folder_id: selectedFolderId,
           analysis: result,
         };
       }
@@ -1110,7 +1288,8 @@
         libraryMessage = "正在读取本机记录...";
         render();
         try {
-          const response = await fetch(`/api/meetings/history?current_user=${encodeURIComponent(user)}`);
+          await loadFolders();
+          const response = await fetch(`/api/meetings/history?current_user=${encodeURIComponent(user)}&folder_id=${encodeURIComponent(selectedFolderId)}`);
           if (!response.ok) throw new Error("读取失败");
           libraryRecords = await response.json();
           libraryMessage = "";
@@ -1173,6 +1352,17 @@
             `).join("")}
           </div>
         `;
+      }
+
+      function renderFolderGrid() {
+        if (!folders.length) return "";
+        return `<div class="folder-grid">${folders.map((folder) => `
+          <button class="folder-card ${folder.id === selectedFolderId ? "active" : ""}" type="button" data-library-action="folder" data-folder-id="${folder.id}">
+            <div class="folder-card-top"><strong>${escapeHtml(folder.name)}</strong><span>${folder.meeting_count || 0} 条</span></div>
+            <small>${folder.aliases?.length ? `称呼：${escapeHtml(folder.aliases.join("、"))}` : "使用账号默认称呼"}</small>
+            <small>${folder.keywords?.length ? escapeHtml(folder.keywords.join("、")) : "未分类记录"}</small>
+          </button>
+        `).join("")}</div>`;
       }
 
       function profileItems(items, emptyText) {
@@ -1328,7 +1518,8 @@
       function taskBelongsToMe(task) {
         if (task.personal === true) return true;
         if (task.personal === false) return false;
-        return task.assignee.split(/[、，,和与及\s]+/).includes(resultUser);
+        const identities = new Set([resultUser, ...(selectedFolder()?.aliases || [])].filter(Boolean));
+        return task.assignee.split(/[、，,和与及\s]+/).some((name) => identities.has(name));
       }
 
       function setTaskPersonal(key, isMine) {
@@ -1378,7 +1569,9 @@
               <div class="metric"><strong>${confirmedCount}</strong><span>已确认任务</span></div>
             </div>
             <h2 class="panel-title">录音库</h2>
-            <p class="panel-note">回看每场沟通留下的行动和判断。记录仅保存在这台电脑，不会自动上传或提交到 GitHub。</p>
+            <p class="panel-note">按场景查看并沉淀个人偏好。点击文件夹可直接进入该场景；未指定归档的记录会进入默认文件夹。</p>
+            ${renderFolderGrid()}
+            <h3>${escapeHtml(selectedFolder()?.name || "默认文件夹")}</h3>
             <div class="library-toolbar">
               <input class="input" id="libraryQuery" value="${escapeHtml(libraryQuery)}" placeholder="搜索会议标题或录音文件名" />
               <button class="btn" type="button" data-library-action="search">搜索</button>
@@ -1575,12 +1768,13 @@
         sampleBtn.textContent = "加载中...";
 
         try {
-          const response = await fetch(`/static/samples/${sample.file}`);
+          const response = await fetch(`/static/samples/${sample.file}?v=identity-folders`);
           if (!response.ok) throw new Error("测试转写加载失败");
           document.querySelector("#transcript").value = await response.text();
           document.querySelector("#user").value = sample.user;
+          await ensureSampleFolder(sample);
           document.querySelector("#user").focus();
-          generationStatus.textContent = `已加载「${sample.title}」，可直接生成任务清单。`;
+          generationStatus.textContent = `已加载「${sample.title}」并选中「${selectedFolder()?.name || "默认文件夹"}」，可直接生成任务清单。`;
         } catch {
           generationStatus.textContent = "测试转写加载失败，请稍后重试。";
         } finally {
@@ -1614,13 +1808,22 @@
         pauseBtn.disabled = false;
         generationStatus.textContent = "正在生成，可暂停后修改输入。";
 
+        const analysisUser = document.querySelector("#user").value.trim();
+        if (analysisUser && !selectedFolderId) {
+          try {
+            await loadFolders();
+          } catch {
+            generationStatus.textContent = "文件夹加载失败，仍会按默认场景继续分析。";
+          }
+        }
+
         const formData = new FormData();
         const audio = document.querySelector("#audio").files[0];
         if (audio) formData.append("audio", audio);
         formData.append("transcript", document.querySelector("#transcript").value);
-        const analysisUser = document.querySelector("#user").value.trim();
         formData.append("current_user", analysisUser);
         formData.append("markers", JSON.stringify(markers));
+        formData.append("folder_id", selectedFolderId);
 
         try {
           const response = await fetch("/api/meetings/analyze", {
@@ -1659,6 +1862,45 @@
         void saveMeeting();
       });
 
+      folderSelect.addEventListener("change", () => {
+        selectedFolderId = folderSelect.value;
+        renderFolderSelect();
+        if (activeTab === "library") void loadLibrary();
+      });
+
+      document.querySelector("#user").addEventListener("change", () => {
+        selectedFolderId = "";
+        void loadFolders();
+      });
+
+      newFolderBtn.addEventListener("click", () => {
+        if (!currentUser()) return;
+        folderForm.reset();
+        folderDialog.showModal();
+      });
+
+      folderDialog.addEventListener("click", (event) => {
+        if (event.target === folderDialog || event.target.closest("[data-folder-action='close']")) {
+          folderDialog.close();
+        }
+      });
+
+      folderForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const name = document.querySelector("#folderName").value.trim();
+        if (!name) return;
+        createFolder({
+          name,
+          keywords: splitTags(document.querySelector("#folderKeywords").value),
+          aliases: splitTags(document.querySelector("#folderAliases").value),
+        }).then(() => {
+          folderDialog.close();
+          generationStatus.textContent = `已创建「${name}」，之后保存的记录会归入该场景。`;
+        }).catch(() => {
+          generationStatus.textContent = "文件夹创建失败，请稍后重试。";
+        });
+      });
+
       focusBtn.addEventListener("click", () => {
         activateTab("focus");
         content.querySelector("#focusQuery")?.focus();
@@ -1674,6 +1916,12 @@
 
       content.addEventListener("click", (event) => {
         const libraryButton = event.target.closest("[data-library-action]");
+        if (libraryButton?.dataset.libraryAction === "folder") {
+          selectedFolderId = libraryButton.dataset.folderId;
+          renderFolderSelect();
+          void loadLibrary();
+          return;
+        }
         if (libraryButton?.dataset.libraryAction === "search") {
           libraryQuery = content.querySelector("#libraryQuery")?.value.trim() || "";
           render();
@@ -1691,7 +1939,9 @@
               result = record.analysis;
               resultUser = record.current_user;
               currentMeetingId = record.id;
+              selectedFolderId = record.folder_id || selectedFolderId;
               document.querySelector("#user").value = record.current_user;
+              void loadFolders(selectedFolderId);
               document.querySelector("#transcript").value = record.transcript;
               saveBtn.disabled = false;
               saveBtn.textContent = "已保存到录音库";
@@ -1777,6 +2027,7 @@
             formData.append("transcript", transcript);
             formData.append("current_user", document.querySelector("#user").value.trim());
             formData.append("focus_query", focusQuery);
+            formData.append("folder_id", selectedFolderId);
 
             fetch("/api/meetings/focus", {
               method: "POST",

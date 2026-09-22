@@ -5,6 +5,8 @@ from unittest.mock import patch
 
 from app.services.personal_memory import (
     build_personal_profile,
+    create_folder,
+    get_folder,
     get_meeting,
     list_meetings,
     personal_context,
@@ -91,6 +93,26 @@ class PersonalMemoryTests(unittest.TestCase):
 
                 profile = build_personal_profile("小万")
                 self.assertEqual(profile["confirmed_tasks"], ["准备方案初稿"])
+
+    def test_folder_keeps_context_and_defaults_unsorted_meetings(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            data_dir = Path(temp_dir) / ".action-memo"
+            database_path = data_dir / "action_memo.db"
+            with patch("app.services.personal_memory.DATA_DIR", data_dir), patch(
+                "app.services.personal_memory.DATABASE_PATH", database_path
+            ):
+                work_folder = create_folder({
+                    "current_user": "小万",
+                    "name": "工作沟通",
+                    "keywords": ["客户", "报价"],
+                    "aliases": ["万哥", "王老师"],
+                })
+                saved = save_meeting({**payload([]), "folder_id": work_folder["id"]})
+                default_record = save_meeting(payload([]))
+
+                self.assertEqual(get_meeting(saved["id"], "小万")["folder_id"], work_folder["id"])
+                self.assertNotEqual(get_meeting(default_record["id"], "小万")["folder_id"], work_folder["id"])
+                self.assertEqual(get_folder(work_folder["id"], "小万")["aliases"], ["万哥", "王老师"])
 
 
 if __name__ == "__main__":

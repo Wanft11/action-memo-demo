@@ -2,11 +2,14 @@ import json
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
-from app.models.history import MeetingHistoryPayload
+from app.models.history import MeetingHistoryPayload, RecordingFolderPayload
 from app.models.meeting import MeetingAnalysis, MeetingFocusAnalysis, MeetingMarker
 from app.services.personal_memory import (
     build_personal_profile,
+    create_folder,
+    get_folder,
     get_meeting,
+    list_folders,
     list_meetings,
     personal_context,
     personalization,
@@ -31,10 +34,20 @@ def health() -> dict[str, str]:
 
 
 @router.get("/meetings/history")
-def meeting_history(current_user: str = "") -> list[dict]:
+def meeting_history(current_user: str = "", folder_id: str = "") -> list[dict]:
     if not current_user.strip():
         return []
-    return list_meetings(current_user)
+    return list_meetings(current_user, folder_id)
+
+
+@router.get("/meetings/folders")
+def meeting_folders(current_user: str = "") -> list[dict]:
+    return list_folders(current_user)
+
+
+@router.post("/meetings/folders")
+def create_meeting_folder(payload: RecordingFolderPayload) -> dict:
+    return create_folder(payload.model_dump())
 
 
 @router.get("/meetings/history/{meeting_id}")
@@ -76,6 +89,7 @@ def analyze_focus(
     transcript: str = Form(default=""),
     current_user: str = Form(default=""),
     focus_query: str = Form(default=""),
+    folder_id: str = Form(default=""),
 ) -> MeetingFocusAnalysis:
     if not transcript.strip():
         raise HTTPException(status_code=422, detail="请先提供会议转写内容")
@@ -86,7 +100,7 @@ def analyze_focus(
         transcript=transcript,
         current_user=current_user,
         focus_query=focus_query,
-        personal_context=personal_context(current_user, transcript),
+        personal_context=personal_context(current_user, transcript, folder_id),
     )
 
 
@@ -96,13 +110,14 @@ async def analyze_meeting(
     transcript: str = Form(default=""),
     current_user: str = Form(default=""),
     markers: str = Form(default="[]"),
+    folder_id: str = Form(default=""),
 ) -> MeetingAnalysis:
     parsed_markers = [
         MeetingMarker.model_validate(marker) for marker in json.loads(markers or "[]")
     ]
 
     def analyze_with_memory(content: str) -> MeetingAnalysis:
-        memory = personalization(current_user, content)
+        memory = personalization(current_user, content, folder_id)
         analysis = analyze_transcript_with_llm(
             transcript=content,
             current_user=current_user,

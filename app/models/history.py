@@ -8,4 +8,11 @@ class MeetingHistoryPayload(BaseModel):
     transcript: str = Field(min_length=1)
     analysis: dict[str, Any]
     audio_name: str = ""
+    folder_id: str = ""
 
+
+class RecordingFolderPayload(BaseModel):
+    current_user: str = Field(min_length=1, max_length=80)
+    name: str = Field(min_length=1, max_length=80)
+    keywords: list[str] = []
+    aliases: list[str] = []

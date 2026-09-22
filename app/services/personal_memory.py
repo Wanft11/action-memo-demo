@@ -25,12 +25,120 @@ def _connection() -> sqlite3.Connection:
             transcript TEXT NOT NULL,
             analysis_json TEXT NOT NULL,
             audio_name TEXT NOT NULL DEFAULT '',
+            folder_id TEXT NOT NULL DEFAULT '',
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         )
         """
     )
+    columns = {row["name"] for row in connection.execute("PRAGMA table_info(saved_meetings)")}
+    if "folder_id" not in columns:
+        connection.execute("ALTER TABLE saved_meetings ADD COLUMN folder_id TEXT NOT NULL DEFAULT ''")
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS recording_folders (
+            id TEXT PRIMARY KEY,
+            current_user TEXT NOT NULL,
+            name TEXT NOT NULL,
+            keywords_json TEXT NOT NULL DEFAULT '[]',
+            aliases_json TEXT NOT NULL DEFAULT '[]',
+            is_default INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL
+        )
+        """
+    )
     return connection
+
+
+def _folder_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "id": row["id"],
+        "current_user": row["current_user"],
+        "name": row["name"],
+        "keywords": json.loads(row["keywords_json"] or "[]"),
+        "aliases": json.loads(row["aliases_json"] or "[]"),
+        "is_default": bool(row["is_default"]),
+    }
+
+
+def ensure_default_folder(current_user: str) -> dict[str, Any]:
+    user = current_user.strip()
+    with _connection() as connection:
+        row = connection.execute(
+            "SELECT * FROM recording_folders WHERE current_user = ? AND is_default = 1 LIMIT 1",
+            (user,),
+        ).fetchone()
+        if not row:
+            folder_id = str(uuid.uuid4())
+            connection.execute(
+                """INSERT INTO recording_folders
+                (id, current_user, name, keywords_json, aliases_json, is_default, created_at)
+                VALUES (?, ?, ?, ?, ?, 1, ?)""",
+                (folder_id, user, "默认文件夹", "[]", json.dumps([user], ensure_ascii=False), datetime.now(timezone.utc).isoformat()),
+            )
+            row = connection.execute("SELECT * FROM recording_folders WHERE id = ?", (folder_id,)).fetchone()
+        connection.execute(
+            "UPDATE saved_meetings SET folder_id = ? WHERE current_user = ? AND folder_id = ''",
+            (row["id"], user),
+        )
+    return _folder_from_row(row)
+
+
+def list_folders(current_user: str) -> list[dict[str, Any]]:
+    user = current_user.strip()
+    if not user:
+        return []
+    ensure_default_folder(user)
+    with _connection() as connection:
+        rows = connection.execute(
+            "SELECT * FROM recording_folders WHERE current_user = ? ORDER BY is_default DESC, created_at ASC",
+            (user,),
+        ).fetchall()
+        counts = {
+            row["folder_id"]: row["count"]
+            for row in connection.execute(
+                "SELECT folder_id, COUNT(*) AS count FROM saved_meetings WHERE current_user = ? GROUP BY folder_id",
+                (user,),
+            )
+        }
+    folders = [_folder_from_row(row) for row in rows]
+    for folder in folders:
+        folder["meeting_count"] = counts.get(folder["id"], 0)
+    return folders
+
+
+def create_folder(payload: dict[str, Any]) -> dict[str, Any]:
+    user = str(payload["current_user"]).strip()
+    name = str(payload["name"]).strip()
+    ensure_default_folder(user)
+    folder_id = str(uuid.uuid4())
+    with _connection() as connection:
+        connection.execute(
+            """INSERT INTO recording_folders
+            (id, current_user, name, keywords_json, aliases_json, is_default, created_at)
+            VALUES (?, ?, ?, ?, ?, 0, ?)""",
+            (
+                folder_id,
+                user,
+                name,
+                json.dumps([item.strip() for item in payload.get("keywords", []) if item.strip()], ensure_ascii=False),
+                json.dumps([item.strip() for item in payload.get("aliases", []) if item.strip()], ensure_ascii=False),
+                datetime.now(timezone.utc).isoformat(),
+            ),
+        )
+        row = connection.execute("SELECT * FROM recording_folders WHERE id = ?", (folder_id,)).fetchone()
+    return _folder_from_row(row)
+
+
+def get_folder(folder_id: str, current_user: str) -> dict[str, Any] | None:
+    if not folder_id:
+        return ensure_default_folder(current_user)
+    with _connection() as connection:
+        row = connection.execute(
+            "SELECT * FROM recording_folders WHERE id = ? AND current_user = ?",
+            (folder_id, current_user.strip()),
+        ).fetchone()
+    return _folder_from_row(row) if row else None
 
 
 def _record_from_row(row: sqlite3.Row, include_content: bool = False) -> dict[str, Any]:
@@ -39,6 +147,7 @@ def _record_from_row(row: sqlite3.Row, include_content: bool = False) -> dict[st
         "current_user": row["current_user"],
         "meeting_title": row["meeting_title"],
         "audio_name": row["audio_name"],
+        "folder_id": row["folder_id"],
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
     }
@@ -67,6 +176,8 @@ def save_meeting(payload: dict[str, Any], meeting_id: str | None = None) -> dict
     analysis = payload["analysis"]
     record_id = meeting_id or str(uuid.uuid4())
     title = str(analysis.get("meeting_title") or "未命名会议")
+    folder = get_folder(str(payload.get("folder_id") or ""), payload["current_user"])
+    folder_id = folder["id"] if folder else ensure_default_folder(payload["current_user"])["id"]
     values = (
         record_id,
         payload["current_user"].strip(),
@@ -74,6 +185,7 @@ def save_meeting(payload: dict[str, Any], meeting_id: str | None = None) -> dict
         payload["transcript"],
         json.dumps(analysis, ensure_ascii=False),
         payload.get("audio_name", ""),
+        folder_id,
         now,
         now,
     )
@@ -83,18 +195,18 @@ def save_meeting(payload: dict[str, Any], meeting_id: str | None = None) -> dict
                 """
                 UPDATE saved_meetings
                 SET current_user = ?, meeting_title = ?, transcript = ?, analysis_json = ?,
-                    audio_name = ?, updated_at = ?
+                    audio_name = ?, folder_id = ?, updated_at = ?
                 WHERE id = ?
                 """,
-                (values[1], values[2], values[3], values[4], values[5], now, record_id),
+                (values[1], values[2], values[3], values[4], values[5], values[6], now, record_id),
             )
         else:
             connection.execute(
                 """
                 INSERT INTO saved_meetings (
                     id, current_user, meeting_title, transcript, analysis_json,
-                    audio_name, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    audio_name, folder_id, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 values,
             )
@@ -102,12 +214,19 @@ def save_meeting(payload: dict[str, Any], meeting_id: str | None = None) -> dict
     return _record_from_row(row, include_content=True)
 
 
-def list_meetings(current_user: str) -> list[dict[str, Any]]:
+def list_meetings(current_user: str, folder_id: str = "") -> list[dict[str, Any]]:
+    folder = get_folder(folder_id, current_user) if folder_id else None
     with _connection() as connection:
-        rows = connection.execute(
-            "SELECT * FROM saved_meetings WHERE current_user = ? ORDER BY updated_at DESC",
-            (current_user.strip(),),
-        ).fetchall()
+        if folder:
+            rows = connection.execute(
+                "SELECT * FROM saved_meetings WHERE current_user = ? AND folder_id = ? ORDER BY updated_at DESC",
+                (current_user.strip(), folder["id"]),
+            ).fetchall()
+        else:
+            rows = connection.execute(
+                "SELECT * FROM saved_meetings WHERE current_user = ? ORDER BY updated_at DESC",
+                (current_user.strip(),),
+            ).fetchall()
     return [_record_from_row(row) for row in rows]
 
 
@@ -188,15 +307,23 @@ def relevant_feedback(current_user: str, transcript: str, limit: int = 4) -> lis
     return selected or candidates[:limit]
 
 
-def personalization(current_user: str, transcript: str = "") -> dict[str, Any]:
+def personalization(current_user: str, transcript: str = "", folder_id: str = "") -> dict[str, Any]:
     if not current_user.strip():
         return {"context": "", "notes": []}
     profile = build_personal_profile(current_user)
-    if not profile["confirmed_tasks"] and not profile["excluded_tasks"]:
+    folder = get_folder(folder_id, current_user) if folder_id else None
+    if not profile["confirmed_tasks"] and not profile["excluded_tasks"] and not folder:
         return {"context": "", "notes": []}
 
     lines = ["用户历史反馈（仅用于辅助判断模糊候选任务）："]
     notes = [f"已读取 {profile['saved_meeting_count']} 场历史会议中的人工反馈"]
+    if folder:
+        aliases = [current_user, *folder["aliases"]]
+        lines.append(f"- 当前场景文件夹：{folder['name']}")
+        lines.append(f"- 当前账号本人可被称为：{'、'.join(dict.fromkeys(alias for alias in aliases if alias))}")
+        if folder["keywords"]:
+            lines.append(f"- 当前场景关键词：{'、'.join(folder['keywords'])}")
+        notes.append(f"当前场景：{folder['name']}")
     if profile["confirmed_tasks"]:
         lines.append(f"- 常被用户确认是自己的任务：{'、'.join(profile['confirmed_tasks'])}")
     if profile["excluded_tasks"]:
@@ -212,5 +339,5 @@ def personalization(current_user: str, transcript: str = "") -> dict[str, Any]:
     return {"context": "\n".join(lines), "notes": notes}
 
 
-def personal_context(current_user: str, transcript: str = "") -> str:
-    return str(personalization(current_user, transcript)["context"])
+def personal_context(current_user: str, transcript: str = "", folder_id: str = "") -> str:
+    return str(personalization(current_user, transcript, folder_id)["context"])
