@@ -72,7 +72,7 @@ def update_meeting_history(meeting_id: str, payload: MeetingHistoryPayload) -> d
 
 
 @router.get("/meetings/profile")
-def meeting_profile(current_user: str = "") -> dict:
+def meeting_profile(current_user: str = "", folder_id: str = "") -> dict:
     if not current_user.strip():
         return {
             "current_user": "",
@@ -81,7 +81,7 @@ def meeting_profile(current_user: str = "") -> dict:
             "excluded_tasks": [],
             "collaborators": [],
         }
-    return build_personal_profile(current_user)
+    return build_personal_profile(current_user, folder_id)
 
 
 @router.post("/meetings/focus", response_model=MeetingFocusAnalysis)

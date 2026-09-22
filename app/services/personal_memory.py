@@ -239,8 +239,8 @@ def get_meeting(meeting_id: str, current_user: str) -> dict[str, Any] | None:
     return _record_from_row(row, include_content=True) if row else None
 
 
-def build_personal_profile(current_user: str) -> dict[str, Any]:
-    meetings = [get_meeting(item["id"], current_user) for item in list_meetings(current_user)]
+def build_personal_profile(current_user: str, folder_id: str = "") -> dict[str, Any]:
+    meetings = [get_meeting(item["id"], current_user) for item in list_meetings(current_user, folder_id)]
     confirmed: Counter[str] = Counter()
     excluded: Counter[str] = Counter()
     collaborators: Counter[str] = Counter()
@@ -279,10 +279,10 @@ def is_profile_task(title: str) -> bool:
     return len(compact) >= 4 and compact not in VAGUE_PROFILE_TASKS and not compact.endswith("一下")
 
 
-def relevant_feedback(current_user: str, transcript: str, limit: int = 4) -> list[dict[str, str]]:
+def relevant_feedback(current_user: str, transcript: str, limit: int = 4, folder_id: str = "") -> list[dict[str, str]]:
     transcript_key = _compact_text(transcript)
     candidates = []
-    for item in list_meetings(current_user):
+    for item in list_meetings(current_user, folder_id):
         meeting = get_meeting(item["id"], current_user)
         if not meeting:
             continue
@@ -310,7 +310,7 @@ def relevant_feedback(current_user: str, transcript: str, limit: int = 4) -> lis
 def personalization(current_user: str, transcript: str = "", folder_id: str = "") -> dict[str, Any]:
     if not current_user.strip():
         return {"context": "", "notes": []}
-    profile = build_personal_profile(current_user)
+    profile = build_personal_profile(current_user, folder_id)
     folder = get_folder(folder_id, current_user) if folder_id else None
     if not profile["confirmed_tasks"] and not profile["excluded_tasks"] and not folder:
         return {"context": "", "notes": []}
@@ -330,7 +330,7 @@ def personalization(current_user: str, transcript: str = "", folder_id: str = ""
         lines.append(f"- 常被用户排除的任务：{'、'.join(profile['excluded_tasks'])}")
     if profile["collaborators"]:
         lines.append(f"- 近期协作者：{'、'.join(profile['collaborators'])}")
-    feedback = relevant_feedback(current_user, transcript)
+    feedback = relevant_feedback(current_user, transcript, folder_id=folder_id)
     if feedback:
         lines.append("- 与当前会议最相关的历史判断：")
         lines.extend(f"  - {item['task']}：用户曾选择“{item['decision']}”" for item in feedback)

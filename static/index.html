@@ -1309,7 +1309,7 @@
         profile = null;
         render();
         try {
-          const response = await fetch(`/api/meetings/profile?current_user=${encodeURIComponent(user)}`);
+          const response = await fetch(`/api/meetings/profile?current_user=${encodeURIComponent(user)}&folder_id=${encodeURIComponent(selectedFolderId)}`);
           if (!response.ok) throw new Error("读取失败");
           profile = await response.json();
         } catch (error) {

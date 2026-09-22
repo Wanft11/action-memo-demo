@@ -114,6 +114,21 @@ class PersonalMemoryTests(unittest.TestCase):
                 self.assertNotEqual(get_meeting(default_record["id"], "小万")["folder_id"], work_folder["id"])
                 self.assertEqual(get_folder(work_folder["id"], "小万")["aliases"], ["万哥", "王老师"])
 
+    def test_folder_feedback_does_not_leak_between_scenarios(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            data_dir = Path(temp_dir) / ".action-memo"
+            database_path = data_dir / "action_memo.db"
+            with patch("app.services.personal_memory.DATA_DIR", data_dir), patch(
+                "app.services.personal_memory.DATABASE_PATH", database_path
+            ):
+                work = create_folder({"current_user": "小万", "name": "工作", "keywords": [], "aliases": ["万哥"]})
+                family = create_folder({"current_user": "小万", "name": "家庭", "keywords": [], "aliases": ["爸爸"]})
+                save_meeting({**payload([{"task": "发送客户报价单", "assignee": "小万", "personal": True}]), "folder_id": work["id"]})
+                save_meeting({**payload([{"task": "购买孩子雨衣", "assignee": "小万", "personal": True}]), "folder_id": family["id"]})
+
+                self.assertEqual(build_personal_profile("小万", work["id"])["confirmed_tasks"], ["发送客户报价单"])
+                self.assertEqual(build_personal_profile("小万", family["id"])["confirmed_tasks"], ["购买孩子雨衣"])
+
 
 if __name__ == "__main__":
     unittest.main()
