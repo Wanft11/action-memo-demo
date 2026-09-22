@@ -9,6 +9,7 @@ from typing import Any
 
 DATA_DIR = Path(__file__).resolve().parents[2] / ".action-memo"
 DATABASE_PATH = DATA_DIR / "action_memo.db"
+VAGUE_PROFILE_TASKS = {"跟进", "整理", "处理", "准备", "确认", "推进", "复盘", "相关内容", "后续事项"}
 
 
 def _connection() -> sqlite3.Connection:
@@ -130,7 +131,7 @@ def build_personal_profile(current_user: str) -> dict[str, Any]:
             continue
         for task in meeting["analysis"].get("all_tasks", []):
             title = str(task.get("task") or "").strip()
-            if not title:
+            if not is_profile_task(title):
                 continue
             status = str(task.get("status") or "")
             if task.get("personal") is True or status in {"已确认", "已修改"}:
@@ -154,6 +155,11 @@ def _compact_text(value: str) -> str:
     return "".join(character for character in value if character.isalnum())
 
 
+def is_profile_task(title: str) -> bool:
+    compact = _compact_text(title)
+    return len(compact) >= 4 and compact not in VAGUE_PROFILE_TASKS and not compact.endswith("一下")
+
+
 def relevant_feedback(current_user: str, transcript: str, limit: int = 4) -> list[dict[str, str]]:
     transcript_key = _compact_text(transcript)
     candidates = []
@@ -164,7 +170,7 @@ def relevant_feedback(current_user: str, transcript: str, limit: int = 4) -> lis
         for task in meeting["analysis"].get("all_tasks", []):
             title = str(task.get("task") or "").strip()
             status = str(task.get("status") or "")
-            if not title:
+            if not is_profile_task(title):
                 continue
             if task.get("personal") is True or status in {"已确认", "已修改"}:
                 decision = "归入我的任务"

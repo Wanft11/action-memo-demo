@@ -101,6 +101,16 @@ class MeetingAnalysisTests(unittest.TestCase):
         self.assertEqual(result["all_tasks"][0]["task"], "画出产品流程")
         self.assertLessEqual(len(result["all_tasks"][0]["task"]), 14)
 
+    def test_vague_task_titles_are_rejected_even_when_model_returns_them(self):
+        transcript = "小万：我会跟进一下。"
+        result = normalize_llm_analysis(
+            {"all_tasks": [task("跟进一下", "小万", transcript)]},
+            transcript,
+            "小万",
+            None,
+        )
+        self.assertEqual(result["all_tasks"], [])
+
     def test_joint_task_is_visible_for_each_owner_only(self):
         data = {"all_tasks": [task("整理访谈证据", "小林、小周", "小万：然后小林和小周可以把访谈或者问卷再看一下，找证据支持需求。") ]}
         for user, count in [("小万", 0), ("小林", 1), ("小周", 1), ("阿哲", 0)]:

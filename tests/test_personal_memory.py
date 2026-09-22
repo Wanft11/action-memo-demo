@@ -77,6 +77,21 @@ class PersonalMemoryTests(unittest.TestCase):
                 self.assertEqual(profile["confirmed_tasks"], [])
                 self.assertEqual(profile["excluded_tasks"], ["填写报名表"])
 
+    def test_vague_feedback_does_not_enter_the_personal_profile(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            data_dir = Path(temp_dir) / ".action-memo"
+            database_path = data_dir / "action_memo.db"
+            with patch("app.services.personal_memory.DATA_DIR", data_dir), patch(
+                "app.services.personal_memory.DATABASE_PATH", database_path
+            ):
+                save_meeting(payload([
+                    {"task": "整理", "assignee": "小万", "personal": True, "status": "已确认"},
+                    {"task": "准备方案初稿", "assignee": "小万", "personal": True, "status": "已确认"},
+                ]))
+
+                profile = build_personal_profile("小万")
+                self.assertEqual(profile["confirmed_tasks"], ["准备方案初稿"])
+
 
 if __name__ == "__main__":
     unittest.main()
