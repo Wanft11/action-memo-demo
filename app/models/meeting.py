@@ -48,4 +48,5 @@ class MeetingAnalysis(BaseModel):
     evidence_notes: list[MeetingInsight] = []
     marked_moments: list[MeetingMarker]
     transcript: list[str]
+    personalization_notes: list[str] = []
     demo_mode: bool = True

@@ -1166,6 +1166,7 @@
         if (activeTab === "task-list") {
           const allTasks = result.all_tasks || result.my_tasks;
           const reviewCount = allTasks.filter((task) => task.personal === undefined).length;
+          const memoryNotes = result.personalization_notes || [];
           content.innerHTML = `
             <div class="hero-metric">
               <div class="metric"><strong>${result.my_tasks.length}</strong><span>已归入我的待办</span></div>
@@ -1174,6 +1175,7 @@
             </div>
             <h2 class="panel-title">任务清单</h2>
             <p class="task-triage-note">先快速判断每条候选任务是不是你的。你的选择会覆盖系统对负责人的初始判断，并即时同步到“我的待办”。</p>
+            ${memoryNotes.length ? `<p class="task-triage-note"><strong>个性化分析已启用</strong><br>${memoryNotes.map(escapeHtml).join("<br>")}</p>` : ""}
             <div class="task-list">
               ${taskCards(allTasks, "triage")}
             </div>

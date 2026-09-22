@@ -136,19 +136,61 @@ def build_personal_profile(current_user: str) -> dict[str, Any]:
     }
 
 
-def personal_context(current_user: str) -> str:
+def _compact_text(value: str) -> str:
+    return "".join(character for character in value if character.isalnum())
+
+
+def relevant_feedback(current_user: str, transcript: str, limit: int = 4) -> list[dict[str, str]]:
+    transcript_key = _compact_text(transcript)
+    candidates = []
+    for item in list_meetings(current_user):
+        meeting = get_meeting(item["id"], current_user)
+        if not meeting:
+            continue
+        for task in meeting["analysis"].get("all_tasks", []):
+            title = str(task.get("task") or "").strip()
+            status = str(task.get("status") or "")
+            if not title:
+                continue
+            if task.get("personal") is True or status in {"已确认", "已修改"}:
+                decision = "归入我的任务"
+            elif task.get("personal") is False or status == "已忽略":
+                decision = "排除为非我的任务"
+            else:
+                continue
+            title_key = _compact_text(title)
+            overlap = len(set(title_key) & set(transcript_key))
+            score = overlap / max(1, len(set(title_key)))
+            candidates.append({"task": title, "decision": decision, "score": score})
+
+    candidates.sort(key=lambda item: item["score"], reverse=True)
+    selected = [item for item in candidates if item["score"] > 0][:limit]
+    return selected or candidates[:limit]
+
+
+def personalization(current_user: str, transcript: str = "") -> dict[str, Any]:
     if not current_user.strip():
-        return ""
+        return {"context": "", "notes": []}
     profile = build_personal_profile(current_user)
     if not profile["confirmed_tasks"] and not profile["excluded_tasks"]:
-        return ""
+        return {"context": "", "notes": []}
 
     lines = ["用户历史反馈（仅用于辅助判断模糊候选任务）："]
+    notes = [f"已读取 {profile['saved_meeting_count']} 场历史会议中的人工反馈"]
     if profile["confirmed_tasks"]:
         lines.append(f"- 常被用户确认是自己的任务：{'、'.join(profile['confirmed_tasks'])}")
     if profile["excluded_tasks"]:
         lines.append(f"- 常被用户排除的任务：{'、'.join(profile['excluded_tasks'])}")
     if profile["collaborators"]:
         lines.append(f"- 近期协作者：{'、'.join(profile['collaborators'])}")
+    feedback = relevant_feedback(current_user, transcript)
+    if feedback:
+        lines.append("- 与当前会议最相关的历史判断：")
+        lines.extend(f"  - {item['task']}：用户曾选择“{item['decision']}”" for item in feedback)
+        notes.append("本次重点参考：" + "、".join(item["task"] for item in feedback[:3]))
     lines.append("当前会议原文中的明确负责人、否定或任务状态优先级更高，不可被历史反馈覆盖。")
-    return "\n".join(lines)
+    return {"context": "\n".join(lines), "notes": notes}
+
+
+def personal_context(current_user: str, transcript: str = "") -> str:
+    return str(personalization(current_user, transcript)["context"])

@@ -9,6 +9,7 @@ from app.services.personal_memory import (
     get_meeting,
     list_meetings,
     personal_context,
+    personalization,
     save_meeting,
 )
 from app.services.meeting_analyzer import (
@@ -85,6 +86,7 @@ def analyze_focus(
         transcript=transcript,
         current_user=current_user,
         focus_query=focus_query,
+        personal_context=personal_context(current_user, transcript),
     )
 
 
@@ -99,13 +101,20 @@ async def analyze_meeting(
         MeetingMarker.model_validate(marker) for marker in json.loads(markers or "[]")
     ]
 
-    if transcript.strip():
-        return analyze_transcript_with_llm(
-            transcript=transcript,
+    def analyze_with_memory(content: str) -> MeetingAnalysis:
+        memory = personalization(current_user, content)
+        analysis = analyze_transcript_with_llm(
+            transcript=content,
             current_user=current_user,
             markers=parsed_markers,
-            personal_context=personal_context(current_user),
+            personal_context=str(memory["context"]),
         )
+        if not analysis.demo_mode:
+            analysis.personalization_notes = list(memory["notes"])
+        return analysis
+
+    if transcript.strip():
+        return analyze_with_memory(transcript)
 
     if audio and has_openai_key():
         audio_bytes = await audio.read()
@@ -122,11 +131,6 @@ async def analyze_meeting(
                 markers=parsed_markers,
                 warning=f"OpenAI 语音转写失败，已自动切回本地解析：{exc.__class__.__name__}",
             )
-        return analyze_transcript_with_llm(
-            transcript=transcribed_text,
-            current_user=current_user,
-            markers=parsed_markers,
-            personal_context=personal_context(current_user),
-        )
+        return analyze_with_memory(transcribed_text)
 
     return build_demo_analysis(parsed_markers)

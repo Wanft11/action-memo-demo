@@ -8,6 +8,8 @@ from app.services.personal_memory import (
     get_meeting,
     list_meetings,
     personal_context,
+    personalization,
+    relevant_feedback,
     save_meeting,
 )
 
@@ -45,6 +47,12 @@ class PersonalMemoryTests(unittest.TestCase):
                 self.assertEqual(profile["excluded_tasks"], ["整理访谈证据"])
                 self.assertIn("画出产品流程", personal_context("小万"))
                 self.assertIn("整理访谈证据", personal_context("小万"))
+
+                feedback = relevant_feedback("小万", "今天要讨论产品流程和 Demo")
+                self.assertEqual(feedback[0]["task"], "画出产品流程")
+                memory = personalization("小万", "今天要讨论产品流程和 Demo")
+                self.assertIn("画出产品流程", memory["context"])
+                self.assertIn("本次重点参考", memory["notes"][1])
 
     def test_updating_a_saved_meeting_replaces_its_feedback(self):
         with tempfile.TemporaryDirectory() as temp_dir:
