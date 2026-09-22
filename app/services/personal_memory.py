@@ -41,9 +41,23 @@ def _record_from_row(row: sqlite3.Row, include_content: bool = False) -> dict[st
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
     }
+    analysis = json.loads(row["analysis_json"])
+    tasks = analysis.get("all_tasks", [])
+    record["task_count"] = len(tasks)
+    record["my_task_count"] = sum(
+        task.get("personal") is True
+        or (
+            task.get("personal") is not False
+            and row["current_user"] in str(task.get("assignee") or "").split("、")
+        )
+        for task in tasks
+    )
+    record["confirmed_task_count"] = sum(
+        str(task.get("status") or "") == "已确认" for task in tasks
+    )
     if include_content:
         record["transcript"] = row["transcript"]
-        record["analysis"] = json.loads(row["analysis_json"])
+        record["analysis"] = analysis
     return record
 
 

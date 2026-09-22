@@ -39,7 +39,11 @@ class PersonalMemoryTests(unittest.TestCase):
                     {"task": "整理访谈证据", "assignee": "小林", "personal": False, "status": "待确认"},
                 ]))
 
-                self.assertEqual(len(list_meetings("小万")), 1)
+                history = list_meetings("小万")
+                self.assertEqual(len(history), 1)
+                self.assertEqual(history[0]["task_count"], 2)
+                self.assertEqual(history[0]["my_task_count"], 1)
+                self.assertEqual(history[0]["confirmed_task_count"], 0)
                 self.assertEqual(get_meeting(saved["id"], "小万")["audio_name"], "demo.m4a")
 
                 profile = build_personal_profile("小万")
