@@ -1,3 +1,4 @@
+import re
 import unittest
 from pathlib import Path
 
@@ -83,6 +84,18 @@ class MeetingAnalysisTests(unittest.TestCase):
             sample = (sample_dir / filename).read_text(encoding="utf-8")
             self.assertEqual(extract_meeting_title(split_transcript_lines(sample)), title)
             self.assertGreaterEqual(len(transcript_turns(split_transcript_lines(sample))), 10)
+
+    def test_every_demo_speaker_turn_has_a_timestamp(self):
+        sample_dir = Path(__file__).resolve().parents[1] / "static" / "samples"
+        for sample_path in sample_dir.glob("*.txt"):
+            lines = sample_path.read_text(encoding="utf-8").splitlines()
+            speaker_lines = [
+                line for line in lines
+                if "：" in line and not line.startswith(("会议主题：", "参会人：", "会议时长："))
+            ]
+            self.assertTrue(speaker_lines, sample_path.name)
+            for line in speaker_lines:
+                self.assertRegex(line, r"^\d{2}:\d{2}\s+[^：]+：", line)
 
     def test_explicit_meeting_subject_replaces_model_title(self):
         transcript = "会议主题：录音豆预赛方案讨论\n小万：今天确定分工。"
