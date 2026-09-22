@@ -89,6 +89,7 @@ class MeetingAnalysisTests(unittest.TestCase):
 
     def test_every_demo_speaker_turn_has_a_timestamp(self):
         sample_dir = Path(__file__).resolve().parents[1] / "static" / "samples"
+        self.assertGreaterEqual(len(list(sample_dir.glob("*.txt"))), 11)
         for sample_path in sample_dir.glob("*.txt"):
             lines = sample_path.read_text(encoding="utf-8").splitlines()
             speaker_lines = [
