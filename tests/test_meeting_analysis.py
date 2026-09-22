@@ -72,6 +72,18 @@ class MeetingAnalysisTests(unittest.TestCase):
         self.assertIn("小万：我还没填，等会提醒我。", sample)
         self.assertIn("阿哲：可以，我今晚弄一下。", sample)
 
+    def test_optional_demo_samples_are_parseable(self):
+        sample_dir = Path(__file__).resolve().parents[1] / "static" / "samples"
+        samples = {
+            "client-follow-up-meeting.txt": "客户需求回访",
+            "campus-event-planning.txt": "校园创意市集筹备沟通",
+        }
+
+        for filename, title in samples.items():
+            sample = (sample_dir / filename).read_text(encoding="utf-8")
+            self.assertEqual(extract_meeting_title(split_transcript_lines(sample)), title)
+            self.assertGreaterEqual(len(transcript_turns(split_transcript_lines(sample))), 10)
+
     def test_explicit_meeting_subject_replaces_model_title(self):
         transcript = "会议主题：录音豆预赛方案讨论\n小万：今天确定分工。"
         result = normalize_llm_analysis({"meeting_title": "录音豆项目会议"}, transcript, "小万", None)

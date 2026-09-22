@@ -498,6 +498,36 @@
         font-size: 13px;
         font-weight: 750;
         white-space: nowrap;
+        transition: background 280ms ease, color 280ms ease, box-shadow 280ms ease, transform 280ms ease;
+      }
+
+      .badge--confirmed {
+        background: linear-gradient(105deg, #dcf8ee, #eefcf5);
+        color: #16785d;
+        box-shadow: 0 4px 12px rgba(27, 166, 121, 0.13);
+      }
+
+      .badge--cancelled {
+        background: linear-gradient(105deg, #fff0f0, #fff8f3);
+        color: #bd4a4a;
+        box-shadow: 0 4px 12px rgba(208, 83, 83, 0.1);
+      }
+
+      .badge--muted {
+        background: #f3f5f8;
+        color: #727a88;
+      }
+
+      .task-card--confirmed {
+        border-color: #b9e5d5;
+        background: linear-gradient(115deg, #ffffff 0%, #fbfffd 100%);
+        animation: task-confirmed 440ms ease-out;
+      }
+
+      .task-card--cancelled {
+        border-color: #f0d4d4;
+        background: linear-gradient(115deg, #ffffff 0%, #fffafa 100%);
+        animation: task-cancelled 440ms ease-out;
       }
 
       .meta {
@@ -664,9 +694,96 @@
         background: #fbfcff;
       }
 
+      .sample-dialog {
+        width: min(620px, calc(100% - 32px));
+        border: 1px solid #e1e5ed;
+        border-radius: 8px;
+        padding: 0;
+        box-shadow: 0 24px 64px rgba(31, 35, 41, 0.2);
+      }
+
+      .sample-dialog::backdrop {
+        background: rgba(31, 35, 41, 0.32);
+        backdrop-filter: blur(2px);
+      }
+
+      .sample-dialog[open] {
+        animation: dialog-enter 180ms ease-out;
+      }
+
+      .sample-dialog-content {
+        padding: 22px;
+      }
+
+      .sample-dialog-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 16px;
+      }
+
+      .sample-dialog-title {
+        margin: 0 0 5px;
+        font-size: 20px;
+      }
+
+      .sample-option-list {
+        display: grid;
+        gap: 9px;
+      }
+
+      .sample-option {
+        display: grid;
+        width: 100%;
+        gap: 4px;
+        border: 1px solid #e1e6ef;
+        border-radius: 8px;
+        background: #fff;
+        padding: 14px;
+        color: var(--ink);
+        cursor: pointer;
+        text-align: left;
+        transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+      }
+
+      .sample-option:hover {
+        border-color: #9eb8ff;
+        background: linear-gradient(110deg, #f7f9ff, #f7fdfb);
+        box-shadow: 0 8px 18px rgba(51, 112, 255, 0.08);
+        transform: translateY(-1px);
+      }
+
+      .sample-option strong {
+        font-size: 16px;
+      }
+
+      .sample-option span {
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.45;
+      }
+
       @keyframes button-sweep {
         from { transform: translateX(-130%); }
         to { transform: translateX(130%); }
+      }
+
+      @keyframes task-confirmed {
+        0% { border-color: #c4d3f7; background: #fff; transform: scale(0.99); }
+        55% { border-color: #75d0af; background: linear-gradient(115deg, #f5fff9, #f0fcf6); }
+        100% { transform: scale(1); }
+      }
+
+      @keyframes task-cancelled {
+        0% { border-color: #c4d3f7; background: #fff; transform: scale(0.99); }
+        55% { border-color: #e6abab; background: linear-gradient(115deg, #fff8f8, #fffdfb); }
+        100% { transform: scale(1); }
+      }
+
+      @keyframes dialog-enter {
+        from { opacity: 0; transform: translateY(8px) scale(0.98); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
       }
 
       @media (prefers-reduced-motion: reduce) {
@@ -816,6 +933,19 @@
       </main>
     </div>
 
+    <dialog class="sample-dialog" id="sampleDialog" aria-labelledby="sampleDialogTitle">
+      <div class="sample-dialog-content">
+        <div class="sample-dialog-top">
+          <div>
+            <h2 class="sample-dialog-title" id="sampleDialogTitle">选择一份测试转写</h2>
+            <p class="panel-note">加载后可修改当前用户，或直接生成任务清单。</p>
+          </div>
+          <button class="btn" type="button" data-sample-action="close" aria-label="关闭测试转写选择">关闭</button>
+        </div>
+        <div class="sample-option-list" id="sampleOptionList"></div>
+      </div>
+    </dialog>
+
     <script>
       const markers = [];
       let result = null;
@@ -835,12 +965,35 @@
       let libraryQuery = "";
       let profile = null;
 
+      const testSamples = [
+        {
+          file: "recording-bean-preliminary-meeting.txt",
+          title: "录音豆预赛方案讨论",
+          detail: "10 分钟 · 产品定位、Demo 分工与报名表提醒",
+          user: "小万",
+        },
+        {
+          file: "client-follow-up-meeting.txt",
+          title: "客户需求回访",
+          detail: "8 分钟 · 客户反馈、报价材料与下次演示安排",
+          user: "李然",
+        },
+        {
+          file: "campus-event-planning.txt",
+          title: "校园活动筹备沟通",
+          detail: "7 分钟 · 场地、海报、报名物料与现场分工",
+          user: "陈诺",
+        },
+      ];
+
       const content = document.querySelector("#content");
       const markersEl = document.querySelector("#markers");
       const analyzeBtn = document.querySelector("#analyzeBtn");
       const saveBtn = document.querySelector("#saveBtn");
       const markBtn = document.querySelector("#markBtn");
       const sampleBtn = document.querySelector("#sampleBtn");
+      const sampleDialog = document.querySelector("#sampleDialog");
+      const sampleOptionList = document.querySelector("#sampleOptionList");
       const focusBtn = document.querySelector("#focusBtn");
       const pauseBtn = document.querySelector("#pauseBtn");
       const generationStatus = document.querySelector("#generationStatus");
@@ -1183,11 +1336,19 @@
         (result.all_tasks || []).forEach((task) => {
           if (taskKey(task) === key) {
             task.personal = isMine;
+            task.status = isMine ? "已确认" : "已取消";
           }
         });
         result.my_tasks = (result.all_tasks || []).filter(taskBelongsToMe);
         render();
         updateSavedMeeting();
+      }
+
+      function taskStatusStyle(status) {
+        if (status === "已确认") return "confirmed";
+        if (status === "已取消") return "cancelled";
+        if (status === "已忽略") return "muted";
+        return "pending";
       }
 
       function updateTaskFields(key, fields) {
@@ -1253,17 +1414,18 @@
                 const key = taskKey(task);
                 const isEditing = editingTaskKey === key;
                 const isTriage = mode === "triage";
+                const statusStyle = taskStatusStyle(task.status);
                 const decisionNote = task.personal === true
-                  ? "已归入我的待办"
+                  ? "已确认并归入我的待办"
                   : task.personal === false
-                    ? "已标记为不是我的任务"
+                    ? "已取消，已排除为非我的任务"
                     : "系统根据负责人做了初步判断，请你确认";
 
                 return `
-                <article class="task-card">
+                <article class="task-card ${statusStyle === "confirmed" ? "task-card--confirmed" : statusStyle === "cancelled" ? "task-card--cancelled" : ""}">
                   <div class="task-top">
                     <h3 class="task-title">${task.task}</h3>
-                    <span class="badge">${task.status}</span>
+                    <span class="badge badge--${statusStyle}">${task.status}</span>
                   </div>
                   <div class="meta">
                     <span><b>负责人</b>${task.assignee}</span>
@@ -1290,8 +1452,8 @@
                       ? `<div class="task-decision">
                            <p class="task-decision-note">${decisionNote}</p>
                            <div class="button-row">
-                             <button class="btn btn-claim" type="button" data-task-action="claim" data-task-key="${key}">是我的</button>
-                             <button class="btn" type="button" data-task-action="reject" data-task-key="${key}">不是我的</button>
+                             <button class="btn btn-claim" type="button" data-task-action="claim" data-task-key="${key}">${task.personal === true ? "仍是我的" : "是我的"}</button>
+                             <button class="btn" type="button" data-task-action="reject" data-task-key="${key}">${task.personal === false ? "仍不是我的" : "不是我的"}</button>
                            </div>
                          </div>`
                       : `<div class="button-row" style="margin-top: 12px">
@@ -1399,19 +1561,50 @@
         renderMarkers();
       });
 
-      sampleBtn.addEventListener("click", async () => {
+      function renderSampleOptions() {
+        sampleOptionList.innerHTML = testSamples.map((sample) => `
+          <button class="sample-option" type="button" data-sample-file="${sample.file}">
+            <strong>${sample.title}</strong>
+            <span>${sample.detail}</span>
+          </button>
+        `).join("");
+      }
+
+      async function loadSample(sample) {
         sampleBtn.disabled = true;
         sampleBtn.textContent = "加载中...";
 
         try {
-          const response = await fetch("/static/samples/recording-bean-preliminary-meeting.txt");
+          const response = await fetch(`/static/samples/${sample.file}`);
           if (!response.ok) throw new Error("测试转写加载失败");
           document.querySelector("#transcript").value = await response.text();
+          document.querySelector("#user").value = sample.user;
           document.querySelector("#user").focus();
+          generationStatus.textContent = `已加载「${sample.title}」，可直接生成任务清单。`;
+        } catch {
+          generationStatus.textContent = "测试转写加载失败，请稍后重试。";
         } finally {
           sampleBtn.disabled = false;
           sampleBtn.textContent = "加载测试转写";
         }
+      }
+
+      sampleBtn.addEventListener("click", () => {
+        renderSampleOptions();
+        sampleDialog.showModal();
+      });
+
+      sampleDialog.addEventListener("click", (event) => {
+        if (event.target === sampleDialog || event.target.closest("[data-sample-action='close']")) {
+          sampleDialog.close();
+          return;
+        }
+        const option = event.target.closest("[data-sample-file]");
+        if (!option) return;
+        const sample = testSamples.find((item) => item.file === option.dataset.sampleFile);
+        if (!sample) return;
+        sampleDialog.close();
+        void loadSample(sample);
       });
 
       analyzeBtn.addEventListener("click", async () => {
