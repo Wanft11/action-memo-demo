@@ -130,6 +130,24 @@ def create_folder(payload: dict[str, Any]) -> dict[str, Any]:
     return _folder_from_row(row)
 
 
+def update_folder(folder_id: str, current_user: str, keywords: list[str], aliases: list[str]) -> dict[str, Any] | None:
+    with _connection() as connection:
+        cursor = connection.execute(
+            """UPDATE recording_folders SET keywords_json = ?, aliases_json = ?
+            WHERE id = ? AND current_user = ?""",
+            (
+                json.dumps(list(dict.fromkeys(item.strip() for item in keywords if item.strip())), ensure_ascii=False),
+                json.dumps(list(dict.fromkeys(item.strip() for item in aliases if item.strip())), ensure_ascii=False),
+                folder_id,
+                current_user.strip(),
+            ),
+        )
+        if not cursor.rowcount:
+            return None
+        row = connection.execute("SELECT * FROM recording_folders WHERE id = ?", (folder_id,)).fetchone()
+    return _folder_from_row(row)
+
+
 def get_folder(folder_id: str, current_user: str) -> dict[str, Any] | None:
     if not folder_id:
         return ensure_default_folder(current_user)

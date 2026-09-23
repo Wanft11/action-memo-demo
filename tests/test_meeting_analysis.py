@@ -9,6 +9,7 @@ from app.services.meeting_analyzer import (
     dedupe_tasks,
     extract_meeting_title,
     find_context_snippet,
+    has_explicit_self_commitment,
     normalize_llm_analysis,
     normalize_focus_analysis,
     split_transcript_lines,
@@ -36,6 +37,30 @@ def task(title, assignee, evidence, deadline="待确认"):
 
 
 class MeetingAnalysisTests(unittest.TestCase):
+    def test_self_commitment_requires_own_explicit_promise(self):
+        self.assertTrue(has_explicit_self_commitment(
+            "02:56 小万：好，我会把移动端审批的场景整理成两页说明。", "小万", "小万"
+        ))
+        self.assertFalse(has_explicit_self_commitment(
+            "02:56 小万：我觉得这个场景值得讨论。", "小万", "小万"
+        ))
+        self.assertFalse(has_explicit_self_commitment(
+            "02:56 说话人 1：我会把场景整理成两页说明。", "小万", "小万"
+        ))
+        self.assertFalse(has_explicit_self_commitment(
+            "02:56 小万：我会把场景整理成两页说明。", "小万、说话人 1", "小万"
+        ))
+
+    def test_normalized_tasks_mark_only_own_explicit_commitment(self):
+        analysis = normalize_llm_analysis({"all_tasks": [
+            dict(task("画出产品流程", "小万", "小万：我这边把产品流程先画出来，再想一下 Demo 怎么呈现。"), confidence=0.9, status="已确认"),
+            dict(task("填写报名表", "小万", "小万：我还没填，等会提醒我。"), confidence=0.9),
+        ]}, TRANSCRIPT, "小万", None)
+
+        self.assertTrue(analysis["all_tasks"][0]["self_committed"])
+        self.assertEqual(analysis["all_tasks"][0]["status"], "待确认")
+        self.assertFalse(analysis["all_tasks"][1]["self_committed"])
+
     def test_local_focus_returns_ranked_original_sources(self):
         result = build_local_focus_analysis(TRANSCRIPT, "小万", "技术流程什么时候完成")
 
@@ -71,8 +96,9 @@ class MeetingAnalysisTests(unittest.TestCase):
 
         self.assertEqual(extract_meeting_title(split_transcript_lines(sample)), "录音豆预赛方案讨论")
         self.assertGreaterEqual(len(turns), 50)
-        self.assertIn("万哥：我还没填，等会提醒我。", sample)
-        self.assertIn("阿哲：可以，我今晚弄一下。", sample)
+        self.assertIn("小万：我还没填，等会提醒我。", sample)
+        self.assertIn("说话人 2：可以，我今晚弄一下。", sample)
+        self.assertIn("阿哲先画一个最简单的链路", sample)
         self.assertNotIn("网页按钮模拟重点标记", sample)
 
     def test_optional_demo_samples_are_parseable(self):
@@ -92,13 +118,26 @@ class MeetingAnalysisTests(unittest.TestCase):
         self.assertGreaterEqual(len(list(sample_dir.glob("*.txt"))), 11)
         for sample_path in sample_dir.glob("*.txt"):
             lines = sample_path.read_text(encoding="utf-8").splitlines()
+            participant_line = next(line for line in lines if line.startswith("参会人："))
+            self.assertRegex(participant_line, r"^参会人：小万(?:、说话人 \d+)+$")
             speaker_lines = [
                 line for line in lines
-                if "：" in line and not line.startswith(("会议主题：", "参会人：", "会议时长："))
+                if re.match(r"^\d{2}:\d{2}\s+[^：]{1,12}：", line)
             ]
             self.assertTrue(speaker_lines, sample_path.name)
+            self.assertGreaterEqual(len(speaker_lines), 55, sample_path.name)
             for line in speaker_lines:
-                self.assertRegex(line, r"^\d{2}:\d{2}\s+[^：]+：", line)
+                self.assertRegex(line, r"^\d{2}:\d{2}\s+(?:小万|说话人 \d+)：", line)
+            self.assertTrue(any(" 小万：" in line for line in speaker_lines), sample_path.name)
+            timed_lines = [line for line in lines if re.match(r"^\d{2}:\d{2}\s+", line)]
+            seconds = [int(line[:2]) * 60 + int(line[3:5]) for line in timed_lines]
+            self.assertEqual(seconds[0], 0, sample_path.name)
+            self.assertGreaterEqual(seconds[-1], 600, sample_path.name)
+            self.assertLessEqual(seconds[-1], 1200, sample_path.name)
+            self.assertTrue(all(5 <= end - start <= 15 for start, end in zip(seconds, seconds[1:])), sample_path.name)
+            duration_line = next(line for line in lines if line.startswith("会议时长："))
+            stated_minutes = int(re.search(r"\d+", duration_line).group())
+            self.assertLessEqual(abs(stated_minutes * 60 - seconds[-1]), 30, sample_path.name)
 
     def test_recording_bean_marker_is_preserved_with_the_transcript(self):
         marker = MeetingMarker(time="09:01", note="录音豆按压", source="recording_bean")
@@ -106,6 +145,30 @@ class MeetingAnalysisTests(unittest.TestCase):
 
         self.assertEqual(result.marked_moments[0].time, "09:01")
         self.assertEqual(result.marked_moments[0].source, "recording_bean")
+
+    def test_demo_marker_times_still_point_to_the_intended_turns(self):
+        markers = {
+            "recording-bean-preliminary-meeting.txt": [("11:42", "我还没填"), ("13:25", "今晚给你们")],
+            "client-follow-up-meeting.txt": [("05:29", "报价单我今天"), ("08:14", "我来发会议邀请")],
+            "campus-event-planning.txt": [("05:22", "足球课请假"), ("08:14", "我总结一下")],
+            "friends-gathering-plan.txt": [("05:43", "共享相册"), ("08:54", "总结一下")],
+            "parent-school-chat.txt": [("02:52", "阅读记录我"), ("10:33", "我负责订正")],
+            "career-mentor-chat.txt": [("02:54", "周五前发给我"), ("08:31", "周末前完成")],
+            "study-group-plan.txt": [("02:55", "第一周先过"), ("10:48", "我维护表格")],
+            "travel-plan.txt": [("02:53", "集合放地铁站"), ("08:08", "确认酒店")],
+            "fitness-coaching.txt": [("02:51", "周三晚上七点"), ("08:00", "周六上午跑步")],
+            "home-repair-chat.txt": [("02:52", "清出来"), ("07:59", "负责确认报价")],
+            "elder-care-plan.txt": [("02:52", "周一请半天假"), ("10:36", "负责接送")],
+        }
+        sample_dir = Path(__file__).resolve().parents[1] / "static" / "samples"
+        demo_page = (sample_dir.parent / "index.html").read_text(encoding="utf-8")
+        for filename, expected in markers.items():
+            sample = (sample_dir / filename).read_text(encoding="utf-8")
+            for time, phrase in expected:
+                self.assertRegex(sample, rf"(?m)^{time} (?:小万|说话人 \d+)：[^\n]*{phrase}")
+            marker_config = re.search(rf'file: "{re.escape(filename)}".*?markers: \[(.*?)\]', demo_page, re.S)
+            self.assertIsNotNone(marker_config, filename)
+            self.assertEqual(re.findall(r'time: "([^"]+)"', marker_config.group(1)), [time for time, _ in expected])
 
     def test_explicit_meeting_subject_replaces_model_title(self):
         transcript = "会议主题：录音豆预赛方案讨论\n小万：今天确定分工。"

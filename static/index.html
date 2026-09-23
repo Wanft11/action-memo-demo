@@ -362,6 +362,51 @@
         margin-top: 12px;
       }
 
+      .todo-section + .todo-section {
+        margin-top: 30px;
+      }
+
+      .todo-heading {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        margin: 0 0 10px;
+        font-size: 18px;
+      }
+
+      .todo-count { color: var(--muted); font-size: 13px; font-weight: 500; }
+      .todo-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid #e5eaf2; }
+      .todo-item { border-bottom: 1px solid #e5eaf2; }
+      .todo-toggle {
+        display: flex;
+        width: 100%;
+        min-height: 54px;
+        align-items: center;
+        gap: 12px;
+        padding: 11px 3px;
+        border: 0;
+        background: transparent;
+        color: var(--ink);
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+      }
+      .todo-toggle:hover { color: #315ded; }
+      .todo-bullet { flex: 0 0 auto; color: #4568ef; font-size: 24px; line-height: 1; }
+      .todo-main { display: flex; flex: 1; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; min-width: 0; }
+      .todo-title { min-width: 0; overflow-wrap: anywhere; font-weight: 650; }
+      .todo-deadline, .todo-needs-date { color: var(--muted); font-size: 13px; white-space: nowrap; }
+      .todo-needs-date { color: #ad6a25; }
+      .todo-chevron { flex: 0 0 auto; color: #7b8798; transition: transform 180ms ease; }
+      .todo-toggle[aria-expanded="true"] .todo-chevron { transform: rotate(180deg); }
+      .todo-detail { padding: 0 12px 16px 30px; color: #4a5668; line-height: 1.6; }
+      .todo-detail p { margin: 5px 0; overflow-wrap: anywhere; }
+      .todo-evidence { border-left: 3px solid #6884ff; padding: 8px 12px; background: #f7f9ff; }
+      .todo-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+      .todo-edit { display: grid; grid-template-columns: minmax(0, 1fr) minmax(190px, 240px); gap: 12px; margin-top: 14px; }
+      .todo-edit label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; }
+      .todo-empty { margin: 0; padding: 16px 2px; color: var(--muted); }
+
       .task-card {
         border: 1px solid #e2e6ed;
         border-radius: 8px;
@@ -529,18 +574,43 @@
       }
 
       .folder-card {
-        display: grid;
-        gap: 6px;
+        position: relative;
         min-height: 116px;
         border: 1px solid #e2e7f0;
         border-radius: 8px;
         background: #fff;
-        padding: 14px;
         color: var(--ink);
-        cursor: pointer;
-        text-align: left;
         transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
       }
+
+      .folder-card-main {
+        display: grid;
+        width: 100%;
+        min-height: 116px;
+        gap: 6px;
+        padding: 14px 58px 14px 14px;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+        text-align: left;
+      }
+
+      .folder-card-edit {
+        position: absolute;
+        top: 12px;
+        right: 10px;
+        padding: 5px 7px;
+        border: 0;
+        border-radius: 4px;
+        background: transparent;
+        color: #4267d7;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 650;
+      }
+
+      .folder-card-edit:hover { background: #eaf0ff; }
 
       .folder-card:hover,
       .folder-card.active {
@@ -570,6 +640,8 @@
         font-size: 12px;
         line-height: 1.4;
       }
+
+      .record-transcript { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line); }
 
       .profile-list {
         display: grid;
@@ -953,6 +1025,8 @@
           grid-template-columns: 1fr;
         }
 
+        .folder-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
         .topbar {
           align-items: flex-start;
           flex-direction: column;
@@ -960,6 +1034,8 @@
       }
 
       @media (max-width: 560px) {
+        .folder-grid { grid-template-columns: 1fr; }
+        .todo-edit { grid-template-columns: 1fr; }
         h1 {
           font-size: 27px;
         }
@@ -1036,7 +1112,7 @@
           <div class="controls">
             <div class="field">
               <label for="user">我的账号</label>
-              <input class="input" id="user" placeholder="例如：小万" />
+              <input class="input" id="user" value="小万" placeholder="例如：小万" />
             </div>
 
             <div class="field">
@@ -1064,6 +1140,14 @@
               <textarea id="transcript" placeholder="可选：粘贴会议文字后会直接生成纪要；上传录音时留空即可。"></textarea>
             </div>
 
+            <div class="field" id="speakerField">
+              <label for="confirmedSpeaker">谁是我（请确认）</label>
+              <select class="input" id="confirmedSpeaker">
+                <option value="">暂不确认，稍后认领任务</option>
+              </select>
+              <p class="panel-note" id="speakerHint">上传真实录音时，如果转写没有区分说话人，任务不会自动归入“我的任务清单”。</p>
+            </div>
+
             <div class="button-row">
               <button class="btn btn-primary" id="analyzeBtn" type="button">生成任务清单</button>
               <button class="btn" id="saveBtn" type="button" disabled>保存到录音库</button>
@@ -1079,14 +1163,11 @@
 
         <section class="panel">
           <div class="tabs">
-            <button class="tab active" data-tab="actions" type="button">我的待办</button>
-            <button class="tab" data-tab="task-list" type="button">任务清单</button>
+            <button class="tab active" data-tab="task-list" type="button">任务清单</button>
             <button class="tab" data-tab="library" type="button">录音库</button>
             <button class="tab" data-tab="profile" type="button">个人画像</button>
             <button class="tab" data-tab="focus" type="button">个人重点</button>
-            <button class="tab" data-tab="all-actions" type="button">全部待办</button>
-            <button class="tab" data-tab="summary" type="button">会议摘要</button>
-            <button class="tab" data-tab="transcript" type="button">全文转写</button>
+            <button class="tab" data-tab="record" type="button">会议记录</button>
           </div>
           <div class="content" id="content">
             <div class="empty">上传录音或直接点击生成，查看 Demo 结果。</div>
@@ -1100,7 +1181,7 @@
         <div class="sample-dialog-top">
           <div>
             <h2 class="sample-dialog-title" id="sampleDialogTitle">选择一份测试转写</h2>
-            <p class="panel-note">加载后可修改当前用户，或直接生成任务清单。</p>
+            <p class="panel-note">加载后请确认哪位说话人是你；不确定时可先生成候选任务。</p>
           </div>
           <button class="btn" type="button" data-sample-action="close" aria-label="关闭测试转写选择">关闭</button>
         </div>
@@ -1135,12 +1216,38 @@
       </form>
     </dialog>
 
+    <dialog class="sample-dialog" id="folderEditDialog" aria-labelledby="folderEditDialogTitle">
+      <form class="sample-dialog-content" id="folderEditForm">
+        <div class="sample-dialog-top">
+          <div>
+            <h2 class="sample-dialog-title" id="folderEditDialogTitle">编辑文件夹</h2>
+            <p class="panel-note" id="folderEditName"></p>
+          </div>
+          <button class="btn" type="button" data-folder-edit-action="close">关闭</button>
+        </div>
+        <div class="field">
+          <label for="editFolderKeywords">场景关键词</label>
+          <input class="input" id="editFolderKeywords" placeholder="用顿号或逗号分隔" />
+        </div>
+        <div class="field" style="margin-top: 14px">
+          <label for="editFolderAliases">这个场景中对我的称呼</label>
+          <input class="input" id="editFolderAliases" placeholder="用顿号或逗号分隔" />
+        </div>
+        <p class="panel-note" id="folderEditError" role="alert"></p>
+        <div class="button-row" style="margin-top: 18px">
+          <button class="btn btn-primary" type="submit">保存</button>
+        </div>
+      </form>
+    </dialog>
+
     <script>
       const markers = [];
       let result = null;
       let resultUser = "";
-      let activeTab = "actions";
+      let activeTab = "task-list";
       let editingTaskKey = "";
+      let editingTodoKey = "";
+      let expandedTaskKey = "";
       let analysisController = null;
       let focusResult = null;
       let focusQuery = "";
@@ -1155,49 +1262,50 @@
       let profile = null;
       let folders = [];
       let selectedFolderId = "";
+      let editingFolderId = "";
 
       const testSamples = [
         {
           file: "recording-bean-preliminary-meeting.txt",
           title: "录音豆预赛方案讨论",
-          detail: "10 分钟 · 产品定位、Demo 分工与报名表提醒",
+          detail: "15 分钟 · 产品定位、Demo 分工与报名表提醒",
           user: "小万",
           folder: { name: "工作沟通", keywords: ["产品", "Demo", "同事"], aliases: ["万哥"] },
           markers: [
-            { time: "08:22", note: "临时报名表提醒" },
-            { time: "09:17", note: "会议分工总结" },
+            { time: "11:42", note: "临时报名表提醒" },
+            { time: "13:25", note: "会议分工总结" },
           ],
         },
         {
           file: "client-follow-up-meeting.txt",
           title: "客户需求回访",
-          detail: "8 分钟 · 客户反馈、报价材料与下次演示安排",
+          detail: "11 分钟 · 客户反馈、报价材料与下次演示安排",
           user: "小万",
           folder: { name: "客户沟通", keywords: ["客户", "报价", "续费"], aliases: ["王老师", "万哥"] },
           markers: [
-            { time: "02:35", note: "报价单承诺" },
-            { time: "03:50", note: "下次沟通安排" },
+            { time: "05:29", note: "报价单承诺" },
+            { time: "08:14", note: "下次沟通安排" },
           ],
         },
         {
           file: "campus-event-planning.txt",
           title: "家庭周末出行安排",
-          detail: "7 分钟 · 出行准备、孩子安排与天气提醒",
+          detail: "11 分钟 · 出行准备、孩子安排与天气提醒",
           user: "小万",
           folder: { name: "家庭生活", keywords: ["孩子", "家长", "周末"], aliases: ["爸爸", "儿子"] },
           markers: [
-            { time: "02:30", note: "孩子的请假提醒" },
-            { time: "05:05", note: "家庭准备事项总结" },
+            { time: "05:22", note: "孩子的请假提醒" },
+            { time: "08:14", note: "家庭准备事项总结" },
           ],
         },
-        { file: "friends-gathering-plan.txt", title: "老友聚会安排", detail: "9 分钟 · 餐厅、照片与聚会分工", user: "小万", folder: { name: "朋友相聚", keywords: ["朋友", "聚会", "周末"], aliases: ["老万"] }, markers: [{ time: "03:46", note: "共享相册安排" }, { time: "06:42", note: "聚会分工总结" }] },
-        { file: "parent-school-chat.txt", title: "孩子家校沟通", detail: "8 分钟 · 作业、阅读与家长会", user: "小万", folder: { name: "家庭生活", keywords: ["孩子", "学校", "家长"], aliases: ["小万爸爸"] }, markers: [{ time: "02:05", note: "阅读记录承诺" }, { time: "05:30", note: "家长待办总结" }] },
-        { file: "career-mentor-chat.txt", title: "求职导师交流", detail: "11 分钟 · 作品集、简历与岗位投递", user: "小万", folder: { name: "个人成长", keywords: ["求职", "简历", "作品集"], aliases: ["小万"] }, markers: [{ time: "02:10", note: "作品集截止时间" }, { time: "05:44", note: "本周行动计划" }] },
-        { file: "study-group-plan.txt", title: "考试复习小组安排", detail: "9 分钟 · 题库、讲解与模拟卷", user: "小万", folder: { name: "学习计划", keywords: ["考试", "复习", "题库"], aliases: ["万哥"] }, markers: [{ time: "01:56", note: "首周复习安排" }, { time: "05:58", note: "小组分工总结" }] },
-        { file: "travel-plan.txt", title: "周末短途旅行规划", detail: "10 分钟 · 酒店、集合与费用安排", user: "小万", folder: { name: "旅行出行", keywords: ["旅行", "酒店", "行程"], aliases: ["小万"] }, markers: [{ time: "02:08", note: "集合时间地点" }, { time: "05:24", note: "出行分工总结" }] },
-        { file: "fitness-coaching.txt", title: "健身训练复盘", detail: "8 分钟 · 拉伸、饮食与训练记录", user: "小万", folder: { name: "健康训练", keywords: ["健身", "训练", "饮食"], aliases: ["阿万"] }, markers: [{ time: "02:02", note: "训练承诺" }, { time: "04:34", note: "周末计划" }] },
-        { file: "home-repair-chat.txt", title: "家电维修沟通", detail: "7 分钟 · 报价、上门与验收", user: "小万", folder: { name: "家庭生活", keywords: ["维修", "家电", "家庭"], aliases: ["万哥"] }, markers: [{ time: "01:56", note: "上门维修安排" }, { time: "04:22", note: "验收待办总结" }] },
-        { file: "elder-care-plan.txt", title: "外婆复诊安排", detail: "9 分钟 · 复诊材料与陪诊分工", user: "小万", folder: { name: "家庭生活", keywords: ["外婆", "复诊", "陪诊"], aliases: ["儿子"] }, markers: [{ time: "02:06", note: "陪诊时间" }, { time: "05:40", note: "复诊任务总结" }] },
+        { file: "friends-gathering-plan.txt", title: "老友聚会安排", detail: "12 分钟 · 餐厅、照片与聚会分工", user: "小万", folder: { name: "朋友相聚", keywords: ["朋友", "聚会", "周末"], aliases: ["老万"] }, markers: [{ time: "05:43", note: "共享相册安排" }, { time: "08:54", note: "聚会分工总结" }] },
+        { file: "parent-school-chat.txt", title: "孩子家校沟通", detail: "11 分钟 · 作业、阅读与家长会", user: "小万", folder: { name: "家庭生活", keywords: ["孩子", "学校", "家长"], aliases: ["小万爸爸"] }, markers: [{ time: "02:52", note: "阅读记录承诺" }, { time: "10:33", note: "家长待办总结" }] },
+        { file: "career-mentor-chat.txt", title: "求职导师交流", detail: "11 分钟 · 作品集、简历与岗位投递", user: "小万", folder: { name: "个人成长", keywords: ["求职", "简历", "作品集"], aliases: ["小万"] }, markers: [{ time: "02:54", note: "作品集截止时间" }, { time: "08:31", note: "本周行动计划" }] },
+        { file: "study-group-plan.txt", title: "考试复习小组安排", detail: "11 分钟 · 题库、讲解与模拟卷", user: "小万", folder: { name: "学习计划", keywords: ["考试", "复习", "题库"], aliases: ["万哥"] }, markers: [{ time: "02:55", note: "首周复习安排" }, { time: "10:48", note: "小组分工总结" }] },
+        { file: "travel-plan.txt", title: "周末短途旅行规划", detail: "11 分钟 · 酒店、集合与费用安排", user: "小万", folder: { name: "旅行出行", keywords: ["旅行", "酒店", "行程"], aliases: ["小万"] }, markers: [{ time: "02:53", note: "集合时间地点" }, { time: "08:08", note: "出行分工总结" }] },
+        { file: "fitness-coaching.txt", title: "健身训练复盘", detail: "11 分钟 · 拉伸、饮食与训练记录", user: "小万", folder: { name: "健康训练", keywords: ["健身", "训练", "饮食"], aliases: ["阿万"] }, markers: [{ time: "02:51", note: "训练承诺" }, { time: "08:00", note: "周末计划" }] },
+        { file: "home-repair-chat.txt", title: "家电维修沟通", detail: "10 分钟 · 报价、上门与验收", user: "小万", folder: { name: "家庭生活", keywords: ["维修", "家电", "家庭"], aliases: ["万哥"] }, markers: [{ time: "02:52", note: "上门维修安排" }, { time: "07:59", note: "验收待办总结" }] },
+        { file: "elder-care-plan.txt", title: "外婆复诊安排", detail: "11 分钟 · 复诊材料与陪诊分工", user: "小万", folder: { name: "家庭生活", keywords: ["外婆", "复诊", "陪诊"], aliases: ["儿子"] }, markers: [{ time: "02:52", note: "陪诊时间" }, { time: "10:36", note: "复诊任务总结" }] },
       ];
 
       const content = document.querySelector("#content");
@@ -1212,11 +1320,30 @@
       const newFolderBtn = document.querySelector("#newFolderBtn");
       const folderDialog = document.querySelector("#folderDialog");
       const folderForm = document.querySelector("#folderForm");
+      const folderEditDialog = document.querySelector("#folderEditDialog");
+      const folderEditForm = document.querySelector("#folderEditForm");
       const audioInput = document.querySelector("#audio");
       const audioFileName = document.querySelector("#audioFileName");
       const focusBtn = document.querySelector("#focusBtn");
       const pauseBtn = document.querySelector("#pauseBtn");
       const generationStatus = document.querySelector("#generationStatus");
+      const transcriptInput = document.querySelector("#transcript");
+      const confirmedSpeaker = document.querySelector("#confirmedSpeaker");
+      const speakerHint = document.querySelector("#speakerHint");
+
+      function updateSpeakerOptions() {
+        const previous = confirmedSpeaker.value;
+        const speakers = [...new Set(transcriptInput.value.split(/\r?\n/).map((line) => {
+          const match = line.trim().match(/^(?:\d{1,2}:\d{2}(?::\d{2})?\s+)?((?:说话人|Speaker)\s*\d+|[\u4e00-\u9fff]{1,8})[：:]/);
+          return match && !["会议主题", "参会人", "会议时长"].includes(match[1].trim()) ? match[1].trim() : "";
+        }).filter(Boolean))];
+        confirmedSpeaker.innerHTML = '<option value="">暂不确认，稍后认领任务</option>'
+          + speakers.map((speaker) => `<option value="${escapeHtml(speaker)}">${escapeHtml(speaker)}</option>`).join("");
+        if (speakers.includes(previous)) confirmedSpeaker.value = previous;
+        speakerHint.textContent = speakers.length
+          ? "选择录音中的自己；不确定时留空，生成后可在任务清单中认领。"
+          : "没有可靠的说话人标签。任务不会自动归入“我的任务清单”，生成后仍可手动认领。";
+      }
 
       document.addEventListener("click", (event) => {
         const pressed = event.target.closest(".btn, .tab");
@@ -1313,6 +1440,17 @@
         const folder = await response.json();
         await loadFolders(folder.id);
         return folder;
+      }
+
+      async function updateFolder(folderId, keywords, aliases) {
+        const response = await fetch(`/api/meetings/folders/${encodeURIComponent(folderId)}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ current_user: currentUser(), keywords, aliases }),
+        });
+        if (!response.ok) throw new Error("文件夹更新失败");
+        await loadFolders(selectedFolderId);
+        render();
       }
 
       async function ensureSampleFolder(sample) {
@@ -1452,11 +1590,14 @@
       function renderFolderGrid() {
         if (!folders.length) return "";
         return `<div class="folder-grid">${folders.map((folder) => `
-          <button class="folder-card ${folder.id === selectedFolderId ? "active" : ""}" type="button" data-library-action="folder" data-folder-id="${folder.id}">
-            <div class="folder-card-top"><strong>${escapeHtml(folder.name)}</strong><span>${folder.meeting_count || 0} 条</span></div>
-            <small>${folder.aliases?.length ? `称呼：${escapeHtml(folder.aliases.join("、"))}` : "使用账号默认称呼"}</small>
-            <small>${folder.keywords?.length ? escapeHtml(folder.keywords.join("、")) : "未分类记录"}</small>
-          </button>
+          <div class="folder-card ${folder.id === selectedFolderId ? "active" : ""}">
+            <button class="folder-card-main" type="button" data-library-action="folder" data-folder-id="${escapeHtml(folder.id)}">
+              <div class="folder-card-top"><strong>${escapeHtml(folder.name)}</strong><span>${folder.meeting_count || 0} 条</span></div>
+              <small>${folder.aliases?.length ? `称呼：${escapeHtml(folder.aliases.join("、"))}` : "使用账号默认称呼"}</small>
+              <small>${folder.keywords?.length ? escapeHtml(folder.keywords.join("、")) : "未分类记录"}</small>
+            </button>
+            <button class="folder-card-edit" type="button" data-library-action="edit-folder" data-folder-id="${escapeHtml(folder.id)}" aria-label="编辑${escapeHtml(folder.name)}的关键词和称呼">编辑</button>
+          </div>
         `).join("")}</div>`;
       }
 
@@ -1610,11 +1751,30 @@
         updateSavedMeeting();
       }
 
+      function hasSpecificDeadline(deadline) {
+        const value = String(deadline || "").trim();
+        return /\d{4}[-/年]\d{1,2}|\d{1,2}月\d{1,2}日|(?:本|下|这)?周[一二三四五六日天]|星期[一二三四五六日天]|今天|明天|后天|今晚|明晚|\d{1,2}[:：]\d{2}|\d{1,2}点/.test(value);
+      }
+
       function taskBelongsToMe(task) {
+        if (!hasSpecificDeadline(task.deadline)) return false;
         if (task.personal === true) return true;
         if (task.personal === false) return false;
+        if (["已取消", "已忽略"].includes(task.status)) return false;
+        if (result?.identity_confirmed === false) return false;
         const identities = new Set([resultUser, ...(selectedFolder()?.aliases || [])].filter(Boolean));
-        return task.assignee.split(/[、，,和与及\s]+/).some((name) => identities.has(name));
+        const ownerMatches = task.assignee.split(/[、，,和与及\s]+/).some((name) => identities.has(name));
+        return ownerMatches && (task.status === "已确认" || (task.self_committed === true && task.confidence >= 0.75));
+      }
+
+      function taskNeedsMyReview(task) {
+        if (taskBelongsToMe(task) || task.personal === false || ["已取消", "已忽略"].includes(task.status)) return false;
+        if (task.personal === true) return true;
+        if (Number(task.confidence) < 0.75) return false;
+        if (result?.identity_confirmed === false) return true;
+        const identities = new Set([resultUser, ...(selectedFolder()?.aliases || [])].filter(Boolean));
+        return ["待确认", "我", ""].includes(task.assignee) ||
+          task.assignee.split(/[、，,和与及\s]+/).some((name) => identities.has(name));
       }
 
       function setTaskPersonal(key, isMine) {
@@ -1649,15 +1809,20 @@
       function updateTaskFields(key, fields) {
         if (!result) return;
 
+        let newKey = key;
+
         ["my_tasks", "all_tasks"].forEach((field) => {
           (result[field] || []).forEach((task) => {
             if (taskKey(task) === key) {
               Object.assign(task, fields);
+              newKey = taskKey(task);
             }
           });
         });
 
         editingTaskKey = "";
+        editingTodoKey = "";
+        if (expandedTaskKey === key) expandedTaskKey = newKey;
         render();
         updateSavedMeeting();
       }
@@ -1716,7 +1881,9 @@
                   ? "已确认并归入我的待办"
                   : task.personal === false
                     ? "已取消，已排除为非我的任务"
-                    : "系统根据负责人做了初步判断，请你确认";
+                    : result.identity_confirmed === false
+                      ? "身份未确认，请判断这是否是你的任务"
+                      : "系统根据负责人做了初步判断，请你确认";
 
                 return `
                 <article class="task-card ${statusStyle === "confirmed" ? "task-card--confirmed" : statusStyle === "cancelled" ? "task-card--cancelled" : ""}">
@@ -1727,7 +1894,6 @@
                   <div class="meta">
                     <span><b>负责人</b>${task.assignee}</span>
                     <span><b>截止</b>${task.deadline}</span>
-                    <span><b>置信度</b>${Math.round(task.confidence * 100)}%</span>
                   </div>
                   <p class="quote"><strong>来源片段｜${task.source}</strong><br>${task.evidence}</p>
                   ${
@@ -1750,7 +1916,6 @@
                            <p class="task-decision-note">${decisionNote}</p>
                            <div class="button-row">
                              <button class="btn btn-claim" type="button" data-task-action="claim" data-task-key="${key}">${task.personal === true ? "仍是我的" : "是我的"}</button>
-                             <button class="btn" type="button" data-task-action="reject" data-task-key="${key}">${task.personal === false ? "仍不是我的" : "不是我的"}</button>
                            </div>
                          </div>`
                       : `<div class="button-row" style="margin-top: 12px">
@@ -1771,6 +1936,36 @@
             .join("");
         }
 
+        function todoList(tasks, isMine) {
+          if (!tasks.length) return `<p class="todo-empty">${isMine ? "暂无已确认的我的任务" : "暂无需要确认的任务"}</p>`;
+          return `<ul class="todo-list">${tasks.map((task) => {
+            const key = taskKey(task);
+            const open = expandedTaskKey === key;
+            const isEditing = editingTodoKey === key;
+            const hasDeadline = hasSpecificDeadline(task.deadline);
+            return `<li class="todo-item">
+              <button class="todo-toggle" type="button" data-task-expand="${escapeHtml(key)}" aria-expanded="${open}" aria-label="${escapeHtml(task.task)}，${open ? "收起" : "展开"}来源片段">
+                <span class="todo-bullet" aria-hidden="true">•</span>
+                <span class="todo-main"><span class="todo-title">${escapeHtml(task.task)}</span>${hasDeadline ? `<span class="todo-deadline">ddl：${escapeHtml(task.deadline)}</span>` : ""}</span>
+                <span class="todo-chevron" aria-hidden="true">⌄</span>
+              </button>
+              ${open ? `<div class="todo-detail">
+                <p>负责人：${task.personal === true ? "我（已确认）" : escapeHtml(task.assignee)}</p>
+                <p class="todo-evidence"><strong>来源片段｜${escapeHtml(task.source)}</strong><br>${escapeHtml(task.evidence)}</p>
+                ${isEditing ? `<div class="todo-edit">
+                  <label>任务<input class="input" data-todo-field="title" value="${escapeHtml(task.task)}" required /></label>
+                  <label>截止时间<input class="input" data-todo-field="deadline" value="${hasDeadline ? escapeHtml(task.deadline) : ""}" placeholder="例如：周五 18:00" /></label>
+                </div>` : ""}
+                <div class="todo-actions">
+                  ${isEditing
+                    ? `<button class="btn btn-primary" type="button" data-task-action="save-todo" data-task-key="${escapeHtml(key)}">保存</button><button class="btn" type="button" data-task-action="cancel-todo" data-task-key="${escapeHtml(key)}">取消</button>`
+                    : `${!isMine && task.personal !== true ? `<button class="btn btn-claim" type="button" data-task-action="claim" data-task-key="${escapeHtml(key)}">确认是我的任务</button>` : ""}${!isMine ? `<button class="btn" type="button" data-task-action="edit-todo" data-task-key="${escapeHtml(key)}">${hasDeadline ? "修改任务" : "补充时间或修改任务"}</button>` : ""}`}
+                </div>
+              </div>` : ""}
+            </li>`;
+          }).join("")}</ul>`;
+        }
+
         function insightCards(items) {
           if (!items || items.length === 0) {
             return "";
@@ -1780,9 +1975,9 @@
             .map(
               (item) => `
                 <div class="plain-card">
-                  <strong>${item.title}</strong>
-                  <p class="panel-note" style="margin-top: 6px">来源片段｜${item.source}</p>
-                  <p style="margin: 8px 0 0">${item.evidence}</p>
+                  <strong>${escapeHtml(item.title)}</strong>
+                  <p class="panel-note" style="margin-top: 6px">来源片段｜${escapeHtml(item.source)}</p>
+                  <p style="margin: 8px 0 0">${escapeHtml(item.evidence)}</p>
                 </div>
               `,
             )
@@ -1791,63 +1986,35 @@
 
         if (activeTab === "task-list") {
           const allTasks = result.all_tasks || result.my_tasks;
-          const reviewCount = allTasks.filter((task) => task.personal === undefined).length;
-          const memoryNotes = result.personalization_notes || [];
+          const reviewTasks = allTasks.filter(taskNeedsMyReview);
           content.innerHTML = `
-            <div class="hero-metric">
-              <div class="metric"><strong>${result.my_tasks.length}</strong><span>已归入我的待办</span></div>
-              <div class="metric"><strong>${allTasks.length}</strong><span>候选任务</span></div>
-              <div class="metric"><strong>${reviewCount}</strong><span>待你确认</span></div>
-            </div>
-            <h2 class="panel-title">任务清单</h2>
-            <p class="task-triage-note">先快速判断每条候选任务是不是你的。你的选择会覆盖系统对负责人的初始判断，并即时同步到“我的待办”。</p>
-            ${memoryNotes.length ? `<p class="task-triage-note"><strong>个性化分析已启用</strong><br>${memoryNotes.map(escapeHtml).join("<br>")}</p>` : ""}
-            <div class="task-list">
-              ${taskCards(allTasks, "triage")}
-            </div>
+            <section class="todo-section"><h3 class="todo-heading">我的任务清单 <span class="todo-count">${result.my_tasks.length}</span></h3>${todoList(result.my_tasks, true)}</section>
+            <section class="todo-section"><h3 class="todo-heading">模糊任务清单 <span class="todo-count">${reviewTasks.length}</span></h3>${todoList(reviewTasks, false)}</section>
           `;
           return;
         }
 
-        if (activeTab === "actions" || activeTab === "all-actions") {
-          const tasks = activeTab === "actions" ? result.my_tasks : (result.all_tasks || result.my_tasks);
-          const title = activeTab === "actions" ? "我的待办" : "全部待办";
+        if (activeTab === "record") {
           content.innerHTML = `
-            <div class="hero-metric">
-              <div class="metric"><strong>${result.my_tasks.length}</strong><span>我的待办</span></div>
-              <div class="metric"><strong>${(result.all_tasks || result.my_tasks).length}</strong><span>全部待办</span></div>
-              <div class="metric"><strong>${result.risks.length}</strong><span>风险提醒</span></div>
-            </div>
-            <h2 class="panel-title">${result.meeting_title}</h2>
+            <h2 class="panel-title">${escapeHtml(result.meeting_title)}</h2>
             <p class="panel-note">${result.demo_mode ? "当前显示本地规则解析结果，请核对任务。" : "已使用 AI 分析会议内容。"}</p>
-            <h3>${title}</h3>
-            <div class="task-list">
-              ${taskCards(tasks)}
-            </div>
-          `;
-          return;
-        }
-
-        if (activeTab === "summary") {
-          content.innerHTML = `
-            <h2 class="panel-title">${result.meeting_title}</h2>
-            <p class="panel-note">${result.demo_mode ? "当前显示本地规则解析结果，请核对任务。" : "已使用 AI 分析会议内容。"}</p>
-            <p class="plain-card">${result.summary}</p>
+            <h3>会议摘要</h3>
+            <p class="plain-card">${escapeHtml(result.summary)}</p>
             <h3>关键决策</h3>
-            <div class="list">${result.decisions.map((item) => `<div class="plain-card">${item}</div>`).join("")}</div>
+            <div class="list">${result.decisions.map((item) => `<div class="plain-card">${escapeHtml(item)}</div>`).join("")}</div>
             ${(result.questions || []).length ? `<h3>待确认问题</h3><div class="list">${insightCards(result.questions)}</div>` : ""}
             ${(result.evidence_notes || []).length ? `<h3>背景证据</h3><div class="list">${insightCards(result.evidence_notes)}</div>` : ""}
             <h3>风险提醒</h3>
-            <div class="list">${result.risks.map((item) => `<div class="plain-card">${item}</div>`).join("")}</div>
+            <div class="list">${result.risks.map((item) => `<div class="plain-card">${escapeHtml(item)}</div>`).join("")}</div>
+            <section class="record-transcript">
+              <h3>全文转写</h3>
+              ${(result.transcript || []).map(renderTranscriptLine).join("")}
+            </section>
           `;
           return;
         }
 
-        content.innerHTML = `
-          <h2 class="panel-title">全文转写</h2>
-          <p class="panel-note">带“录音豆重点”的片段来自设备按压事件，可回看用户当时主动关注的内容。</p>
-          ${(result.transcript || []).map(renderTranscriptLine).join("")}
-        `;
+        content.innerHTML = '<div class="empty">暂时无法显示此页面。</div>';
       }
 
       function renderSampleOptions() {
@@ -1864,10 +2031,12 @@
         sampleBtn.textContent = "加载中...";
 
         try {
-          const response = await fetch(`/static/samples/${sample.file}?v=identity-folders`);
+          const response = await fetch(`/static/samples/${sample.file}?v=self-labeled`);
           if (!response.ok) throw new Error("测试转写加载失败");
           document.querySelector("#transcript").value = await response.text();
+          updateSpeakerOptions();
           document.querySelector("#user").value = sample.user;
+          confirmedSpeaker.value = [...confirmedSpeaker.options].some((option) => option.value === sample.user) ? sample.user : "";
           markers.splice(0, markers.length, ...(sample.markers || []).map((marker) => ({
             label: "录音豆重点",
             time: marker.time,
@@ -1877,7 +2046,7 @@
           renderMarkers();
           await ensureSampleFolder(sample);
           document.querySelector("#user").focus();
-          generationStatus.textContent = `已加载「${sample.title}」并选中「${selectedFolder()?.name || "默认文件夹"}」，可直接生成任务清单。`;
+          generationStatus.textContent = `已加载「${sample.title}」。测试样本已标注本人为「${sample.user}」，其他说话人保持匿名。`;
         } catch {
           generationStatus.textContent = "测试转写加载失败，请稍后重试。";
         } finally {
@@ -1925,6 +2094,7 @@
         if (audio) formData.append("audio", audio);
         formData.append("transcript", document.querySelector("#transcript").value);
         formData.append("current_user", analysisUser);
+        formData.append("confirmed_speaker", confirmedSpeaker.value);
         formData.append("markers", JSON.stringify(markers));
         formData.append("folder_id", selectedFolderId);
 
@@ -1942,7 +2112,7 @@
           saveBtn.textContent = "保存到录音库";
           activateTab("task-list");
           render();
-          generationStatus.textContent = "";
+          generationStatus.textContent = result.identity_confirmed ? "已按确认的说话人生成任务。" : "未确认本人说话人；请到任务清单认领候选任务。";
         } catch (error) {
           if (error.name === "AbortError") {
             generationStatus.textContent = "已暂停生成。修改输入后可重新生成。";
@@ -1975,9 +2145,11 @@
         const file = audioInput.files[0];
         audioFileName.textContent = file ? file.name : "尚未选择录音文件";
       });
+      transcriptInput.addEventListener("input", updateSpeakerOptions);
 
       document.querySelector("#user").addEventListener("change", () => {
         selectedFolderId = "";
+        confirmedSpeaker.value = "";
         void loadFolders();
       });
 
@@ -2009,6 +2181,32 @@
         });
       });
 
+      folderEditDialog.addEventListener("click", (event) => {
+        if (event.target === folderEditDialog || event.target.closest('[data-folder-edit-action="close"]')) {
+          folderEditDialog.close();
+        }
+      });
+
+      folderEditForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (!editingFolderId) return;
+        const submitButton = folderEditForm.querySelector('[type="submit"]');
+        submitButton.disabled = true;
+        document.querySelector("#folderEditError").textContent = "";
+        try {
+          await updateFolder(
+            editingFolderId,
+            splitTags(document.querySelector("#editFolderKeywords").value),
+            splitTags(document.querySelector("#editFolderAliases").value),
+          );
+          folderEditDialog.close();
+        } catch {
+          document.querySelector("#folderEditError").textContent = "保存失败，请稍后重试。";
+        } finally {
+          submitButton.disabled = false;
+        }
+      });
+
       focusBtn.addEventListener("click", () => {
         activateTab("focus");
         content.querySelector("#focusQuery")?.focus();
@@ -2024,6 +2222,17 @@
 
       content.addEventListener("click", (event) => {
         const libraryButton = event.target.closest("[data-library-action]");
+        if (libraryButton?.dataset.libraryAction === "edit-folder") {
+          const folder = folders.find((item) => item.id === libraryButton.dataset.folderId);
+          if (!folder) return;
+          editingFolderId = folder.id;
+          document.querySelector("#folderEditName").textContent = folder.name;
+          document.querySelector("#editFolderKeywords").value = (folder.keywords || []).join("、");
+          document.querySelector("#editFolderAliases").value = (folder.aliases || []).join("、");
+          document.querySelector("#folderEditError").textContent = "";
+          folderEditDialog.showModal();
+          return;
+        }
         if (libraryButton?.dataset.libraryAction === "folder") {
           selectedFolderId = libraryButton.dataset.folderId;
           renderFolderSelect();
@@ -2051,6 +2260,7 @@
               document.querySelector("#user").value = record.current_user;
               void loadFolders(selectedFolderId);
               document.querySelector("#transcript").value = record.transcript;
+              updateSpeakerOptions();
               saveBtn.disabled = false;
               saveBtn.textContent = "已保存到录音库";
               activateTab("task-list");
@@ -2164,14 +2374,45 @@
           }
         }
 
+        const expandButton = event.target.closest("[data-task-expand]");
+        if (expandButton) {
+          expandedTaskKey = expandedTaskKey === expandButton.dataset.taskExpand ? "" : expandButton.dataset.taskExpand;
+          render();
+          content.querySelector(`[data-task-expand="${CSS.escape(expandButton.dataset.taskExpand)}"]`)?.focus();
+          return;
+        }
+
         const button = event.target.closest("[data-task-action]");
         if (!button) return;
 
         const action = button.dataset.taskAction;
         const key = button.dataset.taskKey;
 
-        if (action === "claim" || action === "reject") {
-          setTaskPersonal(key, action === "claim");
+        if (action === "claim") {
+          setTaskPersonal(key, true);
+          return;
+        }
+
+        if (action === "edit-todo" || action === "cancel-todo") {
+          editingTodoKey = action === "edit-todo" ? key : "";
+          render();
+          return;
+        }
+
+        if (action === "save-todo") {
+          const detail = button.closest(".todo-detail");
+          const titleInput = detail?.querySelector('[data-todo-field="title"]');
+          const deadlineInput = detail?.querySelector('[data-todo-field="deadline"]');
+          if (!titleInput || !deadlineInput) return;
+          const title = titleInput.value.trim();
+          const deadline = deadlineInput.value.trim();
+          if (!title) {
+            titleInput.reportValidity();
+            return;
+          }
+          deadlineInput.setCustomValidity(deadline && !hasSpecificDeadline(deadline) ? "请输入具体日期或时间，例如周五 18:00" : "");
+          if (!deadlineInput.reportValidity()) return;
+          updateTaskFields(key, { task: title, deadline: deadline || "待确认" });
           return;
         }
 
@@ -2197,6 +2438,10 @@
           const deadline = content.querySelector(`[data-edit-field="deadline"][data-task-key="${key}"]`)?.value || "待确认";
           updateTaskFields(key, { assignee, deadline, status: "已修改" });
         }
+      });
+
+      void loadFolders().catch(() => {
+        generationStatus.textContent = "文件夹加载失败，请稍后重试。";
       });
     </script>
   </body>

@@ -403,7 +403,7 @@ def infer_assignee_from_evidence(evidence: str, participants: list[str]) -> str 
     name = "(?:" + "|".join(re.escape(item) for item in sorted(participants, key=len, reverse=True)) + ")"
     for turn in transcript_turns(evidence.splitlines()):
         # Only known participant names may be captured as an explicit assignment.
-        match = re.search(rf"({name}(?:\s*[、和与及]\s*{name})*)\s*(?:可以|负责|先|来|一起|请)", turn["text"])
+        match = re.search(rf"({name}(?:\s*[、和与及]\s*{name})*)\s*[，,]?\s*(?:可以|负责|先|来|一起|请)", turn["text"])
         if match:
             return "、".join(re.findall(name, match.group(1)))
     for turn in transcript_turns(evidence.splitlines()):
@@ -417,6 +417,26 @@ def infer_assignee_from_evidence(evidence: str, participants: list[str]) -> str 
 def task_belongs_to_current_user(task: dict, current_user: str) -> bool:
     assignee = str(task.get("assignee") or "")
     return bool(current_user) and current_user in assignee.split("、")
+
+
+def is_directly_assigned_to(evidence: str, assignee: str) -> bool:
+    if not assignee or "、" in assignee:
+        return False
+    return any(
+        turn["speaker"] != assignee
+        and re.search(rf"(?:^|[。！？])\s*{re.escape(assignee)}\s*[，,]?\s*请", turn["text"])
+        for turn in transcript_turns(evidence.splitlines())
+    )
+
+
+def has_explicit_self_commitment(evidence: str, assignee: str, current_user: str) -> bool:
+    if not current_user or assignee != current_user:
+        return False
+    return any(
+        turn["speaker"] == current_user
+        and re.search(r"(?:^|[。！？；，,]\s*)我(?:这边)?(?:会|来|负责|先|今晚|明天|周[一二三四五六日天]|把|将|去|再)", turn["text"])
+        for turn in transcript_turns(evidence.splitlines())
+    )
 
 
 def build_local_transcript_analysis(
@@ -445,7 +465,8 @@ def build_local_transcript_analysis(
                 "source": extract_source(line, index),
                 "evidence": line,
                 "status": "待确认",
-                "confidence": 0.72,
+                "confidence": 0.82 if is_directly_assigned_to(line, assignee) else 0.72,
+                "self_committed": has_explicit_self_commitment(line, assignee, current_user),
             }
         )
 
@@ -651,8 +672,9 @@ def normalize_llm_analysis(data: dict, transcript: str, current_user: str, marke
                         "deadline": deadline,
                         "source": sources[0]["source"] if sources else "会议讨论",
                         "evidence": evidence,
-                        "status": task.get("status") or "待确认",
+                        "status": "待确认",
                         "confidence": confidence,
+                        "self_committed": has_explicit_self_commitment(evidence, assignee, current_user),
                     }
                 )
 

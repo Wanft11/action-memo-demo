@@ -16,3 +16,9 @@ class RecordingFolderPayload(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     keywords: list[str] = []
     aliases: list[str] = []
+
+
+class RecordingFolderUpdatePayload(BaseModel):
+    current_user: str = Field(min_length=1, max_length=80)
+    keywords: list[str] = []
+    aliases: list[str] = []

@@ -3,6 +3,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from fastapi.testclient import TestClient
+
+from app.main import app
 from app.services.personal_memory import (
     build_personal_profile,
     create_folder,
@@ -13,6 +16,7 @@ from app.services.personal_memory import (
     personalization,
     relevant_feedback,
     save_meeting,
+    ensure_default_folder,
 )
 
 
@@ -29,6 +33,35 @@ def payload(tasks):
 
 
 class PersonalMemoryTests(unittest.TestCase):
+    def test_folder_metadata_can_be_edited_without_moving_meetings(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            data_dir = Path(temp_dir) / ".action-memo"
+            database_path = data_dir / "action_memo.db"
+            with patch("app.services.personal_memory.DATA_DIR", data_dir), patch(
+                "app.services.personal_memory.DATABASE_PATH", database_path
+            ):
+                folder = create_folder({
+                    "current_user": "小万", "name": "工作沟通", "keywords": ["产品"], "aliases": ["万哥"]
+                })
+                saved = save_meeting({**payload([]), "folder_id": folder["id"]})
+                client = TestClient(app)
+                response = client.put(f"/api/meetings/folders/{folder['id']}", json={
+                    "current_user": "小万", "keywords": ["客户", "客户", "报价"], "aliases": ["王老师"]
+                })
+
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json()["keywords"], ["客户", "报价"])
+                self.assertEqual(get_folder(folder["id"], "小万")["aliases"], ["王老师"])
+                self.assertEqual(get_meeting(saved["id"], "小万")["folder_id"], folder["id"])
+                self.assertEqual(client.put(f"/api/meetings/folders/{folder['id']}", json={
+                    "current_user": "别人", "keywords": [], "aliases": []
+                }).status_code, 404)
+
+                default = ensure_default_folder("小万")
+                self.assertEqual(client.put(f"/api/meetings/folders/{default['id']}", json={
+                    "current_user": "小万", "keywords": ["临时"], "aliases": ["小万"]
+                }).status_code, 200)
+
     def test_saved_feedback_builds_a_local_personal_profile(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             data_dir = Path(temp_dir) / ".action-memo"

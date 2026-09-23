@@ -16,6 +16,7 @@ class MeetingTask(BaseModel):
     evidence: str
     status: str = "待确认"
     confidence: float = Field(default=0.88, ge=0, le=1)
+    self_committed: bool = False
 
 
 class MeetingInsight(BaseModel):
@@ -51,3 +52,4 @@ class MeetingAnalysis(BaseModel):
     transcript: list[str]
     personalization_notes: list[str] = []
     demo_mode: bool = True
+    identity_confirmed: bool = True
