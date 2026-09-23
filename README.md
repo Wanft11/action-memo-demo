@@ -92,6 +92,17 @@ cp static/samples/action_memo_demo.db .action-memo/action_memo.db
 .venv/bin/python scripts/create_demo_database.py
 ```
 
+### 安装当前团队测试快照
+
+`static/samples/action_memo_team.db` 是当前本机录音库的手动快照，包含此前用于测试的“录音豆预赛方案讨论”文字、生成结果和六个文件夹设置；没有音频文件。它与上面的脱敏演示库是两个可选测试起点。需要测试同一份记录时，在项目根目录运行：
+
+```bash
+mkdir -p .action-memo
+cp static/samples/action_memo_team.db .action-memo/action_memo.db
+```
+
+刷新 Demo，并将“我的账号”设为 `小万`。**复制会覆盖已有本机数据库，请先备份。**后续在页面上修改记录、关键词或称呼不会自动同步到 GitHub；只有经过检查并重新提交快照后，队友才能取得更新。真实会议或录音加入本机库后，不要直接重新上传这个快照。GitHub 旧提交也会保留已上传的内容，之后删除文件不能抹去历史版本。
+
 ## 团队协作
 
 仓库目前是私有的。先由仓库管理员在 GitHub 的 `Settings → Collaborators` 邀请队友，接受邀请后即可访问和提交代码。
