@@ -21,7 +21,7 @@ class MeetingTask(BaseModel):
 
 class MeetingInsight(BaseModel):
     title: str
-    source: str = "会议讨论"
+    source: str = "交流内容"
     evidence: str
 
 

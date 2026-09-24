@@ -444,13 +444,19 @@
         border: 1px solid #e3e7ee;
         border-radius: 8px;
         background: #fff;
+        padding: 14px;
         transition: box-shadow 160ms ease, border-color 160ms ease;
       }
 
       .library-item:hover {
         border-color: #cdd9f4;
         box-shadow: 0 6px 16px rgba(31, 35, 41, 0.05);
-        padding: 14px;
+      }
+
+      .library-item-actions {
+        display: flex;
+        flex: 0 0 auto;
+        gap: 8px;
       }
 
       .library-item-main {
@@ -611,6 +617,33 @@
       }
 
       .folder-card-edit:hover { background: #eaf0ff; }
+
+      .folder-card-delete {
+        position: absolute;
+        top: 42px;
+        right: 10px;
+        padding: 5px 7px;
+        border: 0;
+        border-radius: 4px;
+        background: transparent;
+        color: #b42318;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 650;
+      }
+
+      .folder-card-delete:hover { background: #fff0ee; }
+
+      .btn-danger {
+        border-color: #f0b6ae;
+        background: #c3342a;
+        color: #fff;
+      }
+
+      .btn-danger:hover:not(:disabled) {
+        border-color: #a5261c;
+        background: #a5261c;
+      }
 
       .folder-card:hover,
       .folder-card.active {
@@ -1084,6 +1117,14 @@
           width: 100%;
         }
 
+        .library-item-actions {
+          width: 100%;
+        }
+
+        .library-item-actions .btn {
+          flex: 1 1 0;
+        }
+
         .library-toolbar {
           grid-template-columns: 1fr;
         }
@@ -1106,7 +1147,7 @@
       <main class="grid">
         <section class="panel">
           <div class="panel-header">
-            <h2 class="panel-title">会议输入</h2>
+            <h2 class="panel-title">录音与文字输入</h2>
             <p class="panel-note">配置 API Key 后可识别真实录音；未配置时自动使用黑客松模拟结果。</p>
           </div>
           <div class="controls">
@@ -1136,8 +1177,8 @@
             </div>
 
             <div class="field">
-              <label for="transcript">会议转写</label>
-              <textarea id="transcript" placeholder="可选：粘贴会议文字后会直接生成纪要；上传录音时留空即可。"></textarea>
+              <label for="transcript">转写内容</label>
+              <textarea id="transcript" placeholder="可选：粘贴对话文字后直接生成任务；上传录音时留空即可。"></textarea>
             </div>
 
             <div class="field" id="speakerField">
@@ -1167,7 +1208,7 @@
             <button class="tab" data-tab="library" type="button">录音库</button>
             <button class="tab" data-tab="profile" type="button">个人画像</button>
             <button class="tab" data-tab="focus" type="button">个人重点</button>
-            <button class="tab" data-tab="record" type="button">会议记录</button>
+            <button class="tab" data-tab="record" type="button">内容记录</button>
           </div>
           <div class="content" id="content">
             <div class="empty">上传录音或直接点击生成，查看 Demo 结果。</div>
@@ -1240,6 +1281,28 @@
       </form>
     </dialog>
 
+    <dialog class="sample-dialog" id="folderSuggestionDialog" aria-labelledby="folderSuggestionTitle">
+      <form class="sample-dialog-content" method="dialog">
+        <h2 class="sample-dialog-title" id="folderSuggestionTitle">存入推荐文件夹？</h2>
+        <p class="panel-note" id="folderSuggestionMessage"></p>
+        <div class="button-row" style="margin-top: 18px">
+          <button class="btn" type="submit" value="default">留在默认文件夹</button>
+          <button class="btn btn-primary" type="submit" value="recommended" id="acceptFolderSuggestion">存入推荐文件夹</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="sample-dialog" id="deleteDialog" aria-labelledby="deleteDialogTitle">
+      <form class="sample-dialog-content" method="dialog">
+        <h2 class="sample-dialog-title" id="deleteDialogTitle"></h2>
+        <p class="panel-note" id="deleteDialogDescription"></p>
+        <div class="button-row" style="margin-top: 18px">
+          <button class="btn" type="submit" value="cancel">取消</button>
+          <button class="btn btn-danger" type="submit" value="delete">确认删除</button>
+        </div>
+      </form>
+    </dialog>
+
     <script>
       const markers = [];
       let result = null;
@@ -1258,10 +1321,12 @@
       let currentMeetingId = "";
       let libraryRecords = [];
       let libraryMessage = "";
+      let libraryNotice = "";
       let libraryQuery = "";
       let profile = null;
       let folders = [];
       let selectedFolderId = "";
+      let folderSelectionExplicit = false;
       let editingFolderId = "";
 
       const testSamples = [
@@ -1322,6 +1387,8 @@
       const folderForm = document.querySelector("#folderForm");
       const folderEditDialog = document.querySelector("#folderEditDialog");
       const folderEditForm = document.querySelector("#folderEditForm");
+      const folderSuggestionDialog = document.querySelector("#folderSuggestionDialog");
+      const deleteDialog = document.querySelector("#deleteDialog");
       const audioInput = document.querySelector("#audio");
       const audioFileName = document.querySelector("#audioFileName");
       const focusBtn = document.querySelector("#focusBtn");
@@ -1335,7 +1402,7 @@
         const previous = confirmedSpeaker.value;
         const speakers = [...new Set(transcriptInput.value.split(/\r?\n/).map((line) => {
           const match = line.trim().match(/^(?:\d{1,2}:\d{2}(?::\d{2})?\s+)?((?:说话人|Speaker)\s*\d+|[\u4e00-\u9fff]{1,8})[：:]/);
-          return match && !["会议主题", "参会人", "会议时长"].includes(match[1].trim()) ? match[1].trim() : "";
+          return match && !["会议主题", "录音主题", "对话主题", "主题", "参会人", "会议时长"].includes(match[1].trim()) ? match[1].trim() : "";
         }).filter(Boolean))];
         confirmedSpeaker.innerHTML = '<option value="">暂不确认，稍后认领任务</option>'
           + speakers.map((speaker) => `<option value="${escapeHtml(speaker)}">${escapeHtml(speaker)}</option>`).join("");
@@ -1453,29 +1520,110 @@
         render();
       }
 
-      async function ensureSampleFolder(sample) {
-        if (!sample.folder) return;
-        await loadFolders();
-        let folder = folders.find((item) => item.name === sample.folder.name);
-        if (!folder) {
-          folder = await createFolder(sample.folder);
+      async function confirmDelete(title, description) {
+        document.querySelector("#deleteDialogTitle").textContent = title;
+        document.querySelector("#deleteDialogDescription").textContent = description;
+        deleteDialog.returnValue = "";
+        deleteDialog.showModal();
+        const decision = await new Promise((resolve) => {
+          deleteDialog.addEventListener("close", () => resolve(deleteDialog.returnValue), { once: true });
+        });
+        return decision === "delete";
+      }
+
+      async function removeFolder(folderId) {
+        const folder = folders.find((item) => item.id === folderId);
+        if (!folder || folder.is_default) return;
+        const count = folder.meeting_count || 0;
+        if (!await confirmDelete(`删除「${folder.name}」？`, `文件夹中的 ${count} 条记录会移到默认文件夹，关键词和称呼设置将删除。`)) return;
+        try {
+          const response = await fetch(`/api/meetings/folders/${encodeURIComponent(folderId)}?current_user=${encodeURIComponent(currentUser())}`, { method: "DELETE" });
+          if (!response.ok) throw new Error("删除文件夹失败");
+          const { moved_count } = await response.json();
+          if (selectedFolderId === folderId) {
+            selectedFolderId = folders.find((item) => item.is_default)?.id || "";
+            folderSelectionExplicit = false;
+          }
+          profile = null;
+          libraryNotice = `文件夹已删除，${moved_count} 条记录已移到默认文件夹。`;
+          await loadLibrary();
+        } catch {
+          libraryNotice = "删除文件夹失败，请稍后重试。";
+          render();
         }
-        selectedFolderId = folder.id;
-        renderFolderSelect();
+      }
+
+      async function removeRecord(meetingId) {
+        const record = libraryRecords.find((item) => item.id === meetingId);
+        if (!record) return;
+        if (!await confirmDelete(`删除「${record.meeting_title}」？`, "这条记录的转写、分析结果和任务反馈会从本机永久移除，无法撤销。")) return;
+        try {
+          const response = await fetch(`/api/meetings/history/${encodeURIComponent(meetingId)}?current_user=${encodeURIComponent(currentUser())}`, { method: "DELETE" });
+          if (!response.ok) throw new Error("删除记录失败");
+          if (currentMeetingId === meetingId) {
+            currentMeetingId = "";
+            result = null;
+            saveBtn.disabled = true;
+            saveBtn.textContent = "保存到录音库";
+          }
+          profile = null;
+          libraryNotice = "记录已删除。";
+          await loadLibrary();
+        } catch {
+          libraryNotice = "删除记录失败，请稍后重试。";
+          render();
+        }
+      }
+
+      async function suggestFolderBeforeSave() {
+        if (currentMeetingId || folderSelectionExplicit || !selectedFolder()?.is_default) return;
+        const response = await fetch("/api/meetings/folders/suggest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            current_user: currentUser(),
+            transcript: meetingTranscript(),
+            meeting_title: result?.meeting_title || "",
+            summary: result?.summary || "",
+          }),
+        });
+        if (!response.ok) throw new Error("文件夹推荐失败");
+        const { suggestion } = await response.json();
+        if (!suggestion || !folders.some((folder) => folder.id === suggestion.folder_id)) return;
+
+        document.querySelector("#folderSuggestionMessage").textContent =
+          `这段内容提到了「${suggestion.matched_keywords.join("、")}」，可能适合放进「${suggestion.name}」。`;
+        document.querySelector("#acceptFolderSuggestion").textContent = `存入「${suggestion.name}」`;
+        folderSuggestionDialog.returnValue = "";
+        folderSuggestionDialog.showModal();
+        const decision = await new Promise((resolve) => {
+          folderSuggestionDialog.addEventListener("close", () => resolve(folderSuggestionDialog.returnValue), { once: true });
+        });
+        if (decision === "recommended") {
+          selectedFolderId = suggestion.folder_id;
+          folderSelectionExplicit = true;
+          renderFolderSelect();
+        }
       }
 
       function meetingPayload() {
         return {
           current_user: currentUser(),
-          transcript: document.querySelector("#transcript").value.trim(),
+          transcript: meetingTranscript(),
           audio_name: document.querySelector("#audio").files[0]?.name || "",
           folder_id: selectedFolderId,
           analysis: result,
         };
       }
 
+      function meetingTranscript() {
+        return transcriptInput.value.trim() || (audioInput.files[0] && result && !result.demo_mode
+          ? (result.transcript || []).join("\n").trim()
+          : "");
+      }
+
       async function saveMeeting(silent = false) {
-        if (!result || !currentUser() || !document.querySelector("#transcript").value.trim()) {
+        if (!result || !currentUser() || !meetingTranscript()) {
           if (!silent) generationStatus.textContent = "请先填写当前用户并生成一份包含转写的任务清单。";
           return;
         }
@@ -1485,6 +1633,13 @@
           saveBtn.textContent = "保存中...";
         }
         try {
+          if (!silent) {
+            try {
+              await suggestFolderBeforeSave();
+            } catch {
+              generationStatus.textContent = "场景推荐暂不可用，将按当前选择保存。";
+            }
+          }
           const response = await fetch(
             currentMeetingId ? `/api/meetings/history/${currentMeetingId}` : "/api/meetings/history",
             {
@@ -1562,7 +1717,7 @@
           return !query || searchable.includes(query);
         });
         if (!records.length) {
-          return '<div class="empty">没有匹配的会议。试试输入更短的标题关键词。</div>';
+          return '<div class="empty">没有匹配的记录。试试输入更短的标题关键词。</div>';
         }
         return `
           <div class="library-list">
@@ -1580,7 +1735,10 @@
                     </div>
                   </div>
                 </div>
-                <button class="btn" type="button" data-library-action="open" data-meeting-id="${escapeHtml(record.id)}">打开</button>
+                <div class="library-item-actions">
+                  <button class="btn" type="button" data-library-action="open" data-meeting-id="${escapeHtml(record.id)}">打开</button>
+                  <button class="btn" type="button" data-library-action="delete-record" data-meeting-id="${escapeHtml(record.id)}" aria-label="删除${escapeHtml(record.meeting_title)}">删除</button>
+                </div>
               </article>
             `).join("")}
           </div>
@@ -1597,6 +1755,7 @@
               <small>${folder.keywords?.length ? escapeHtml(folder.keywords.join("、")) : "未分类记录"}</small>
             </button>
             <button class="folder-card-edit" type="button" data-library-action="edit-folder" data-folder-id="${escapeHtml(folder.id)}" aria-label="编辑${escapeHtml(folder.name)}的关键词和称呼">编辑</button>
+            ${folder.is_default ? "" : `<button class="folder-card-delete" type="button" data-library-action="delete-folder" data-folder-id="${escapeHtml(folder.id)}" aria-label="删除${escapeHtml(folder.name)}文件夹">删除</button>`}
           </div>
         `).join("")}</div>`;
       }
@@ -1612,12 +1771,12 @@
         if (profile.error) return '<div class="empty">暂时无法读取个人画像。</div>';
         return `
           <div class="hero-metric">
-            <div class="metric"><strong>${profile.saved_meeting_count}</strong><span>已保存会议</span></div>
+            <div class="metric"><strong>${profile.saved_meeting_count}</strong><span>已保存记录</span></div>
             <div class="metric"><strong>${profile.confirmed_tasks.length}</strong><span>确认过的任务类型</span></div>
             <div class="metric"><strong>${profile.excluded_tasks.length}</strong><span>排除过的任务类型</span></div>
           </div>
           <h2 class="panel-title">${escapeHtml(currentUser())}的个人工作画像</h2>
-          <p class="task-triage-note">只使用你在本机主动确认、排除或修改过的任务，帮助模型判断后续会议里的模糊候选项；会议原文中的明确负责人永远优先。</p>
+          <p class="task-triage-note">只使用你在本机主动确认、排除或修改过的任务，帮助模型判断后续记录里的模糊候选项；原文中的明确负责人永远优先。</p>
           <h3>通常归入我的任务</h3>
           ${profileItems(profile.confirmed_tasks, "还没有足够的人工确认记录。")}
           <h3 style="margin-top: 22px">通常不是我的任务</h3>
@@ -1649,7 +1808,7 @@
         const queryKey = compactText(query);
         if (queryKey.length < 3) return null;
 
-        let source = "会议转写";
+        let source = "原文转写";
         let bestMatch = null;
         lines.forEach((rawLine) => {
           const line = rawLine.trim();
@@ -1833,16 +1992,17 @@
           const confirmedCount = libraryRecords.reduce((total, record) => total + (record.confirmed_task_count || 0), 0);
           content.innerHTML = `
             <div class="hero-metric">
-              <div class="metric"><strong>${libraryRecords.length}</strong><span>已保存会议</span></div>
+              <div class="metric"><strong>${libraryRecords.length}</strong><span>已保存记录</span></div>
               <div class="metric"><strong>${myTaskCount}</strong><span>与我有关的任务</span></div>
               <div class="metric"><strong>${confirmedCount}</strong><span>已确认任务</span></div>
             </div>
             <h2 class="panel-title">录音库</h2>
             <p class="panel-note">按场景查看并沉淀个人偏好。点击文件夹可直接进入该场景；未指定归档的记录会进入默认文件夹。</p>
+            ${libraryNotice ? `<p class="panel-note" role="status">${escapeHtml(libraryNotice)}</p>` : ""}
             ${renderFolderGrid()}
             <h3>${escapeHtml(selectedFolder()?.name || "默认文件夹")}</h3>
             <div class="library-toolbar">
-              <input class="input" id="libraryQuery" value="${escapeHtml(libraryQuery)}" placeholder="搜索会议标题或录音文件名" />
+              <input class="input" id="libraryQuery" value="${escapeHtml(libraryQuery)}" placeholder="搜索记录标题或录音文件名" />
               <button class="btn" type="button" data-library-action="search">搜索</button>
             </div>
             ${renderLibrary()}
@@ -1950,7 +2110,7 @@
                 <span class="todo-chevron" aria-hidden="true">⌄</span>
               </button>
               ${open ? `<div class="todo-detail">
-                <p>负责人：${task.personal === true ? "我（已确认）" : escapeHtml(task.assignee)}</p>
+                ${isMine ? "" : `<p>负责人：${task.personal === true ? "我（已确认）" : escapeHtml(task.assignee)}</p>`}
                 <p class="todo-evidence"><strong>来源片段｜${escapeHtml(task.source)}</strong><br>${escapeHtml(task.evidence)}</p>
                 ${isEditing ? `<div class="todo-edit">
                   <label>任务<input class="input" data-todo-field="title" value="${escapeHtml(task.task)}" required /></label>
@@ -1997,8 +2157,8 @@
         if (activeTab === "record") {
           content.innerHTML = `
             <h2 class="panel-title">${escapeHtml(result.meeting_title)}</h2>
-            <p class="panel-note">${result.demo_mode ? "当前显示本地规则解析结果，请核对任务。" : "已使用 AI 分析会议内容。"}</p>
-            <h3>会议摘要</h3>
+            <p class="panel-note">${result.demo_mode ? "当前显示本地规则解析结果，请核对任务。" : "已使用 AI 分析录音内容。"}</p>
+            <h3>内容摘要</h3>
             <p class="plain-card">${escapeHtml(result.summary)}</p>
             <h3>关键决策</h3>
             <div class="list">${result.decisions.map((item) => `<div class="plain-card">${escapeHtml(item)}</div>`).join("")}</div>
@@ -2035,7 +2195,13 @@
           if (!response.ok) throw new Error("测试转写加载失败");
           document.querySelector("#transcript").value = await response.text();
           updateSpeakerOptions();
+          const previousUser = currentUser();
           document.querySelector("#user").value = sample.user;
+          if (previousUser !== sample.user) {
+            selectedFolderId = "";
+            folderSelectionExplicit = false;
+            await loadFolders();
+          }
           confirmedSpeaker.value = [...confirmedSpeaker.options].some((option) => option.value === sample.user) ? sample.user : "";
           markers.splice(0, markers.length, ...(sample.markers || []).map((marker) => ({
             label: "录音豆重点",
@@ -2044,7 +2210,6 @@
             source: "recording_bean",
           })));
           renderMarkers();
-          await ensureSampleFolder(sample);
           document.querySelector("#user").focus();
           generationStatus.textContent = `已加载「${sample.title}」。测试样本已标注本人为「${sample.user}」，其他说话人保持匿名。`;
         } catch {
@@ -2104,7 +2269,7 @@
             body: formData,
             signal: analysisController.signal,
           });
-          if (!response.ok) throw new Error("会议分析失败");
+          if (!response.ok) throw new Error("内容分析失败");
           result = await response.json();
           resultUser = analysisUser;
           currentMeetingId = "";
@@ -2137,6 +2302,7 @@
 
       folderSelect.addEventListener("change", () => {
         selectedFolderId = folderSelect.value;
+        folderSelectionExplicit = true;
         renderFolderSelect();
         if (activeTab === "library") void loadLibrary();
       });
@@ -2149,6 +2315,7 @@
 
       document.querySelector("#user").addEventListener("change", () => {
         selectedFolderId = "";
+        folderSelectionExplicit = false;
         confirmedSpeaker.value = "";
         void loadFolders();
       });
@@ -2174,6 +2341,7 @@
           keywords: splitTags(document.querySelector("#folderKeywords").value),
           aliases: splitTags(document.querySelector("#folderAliases").value),
         }).then(() => {
+          folderSelectionExplicit = true;
           folderDialog.close();
           generationStatus.textContent = `已创建「${name}」，之后保存的记录会归入该场景。`;
         }).catch(() => {
@@ -2222,6 +2390,14 @@
 
       content.addEventListener("click", (event) => {
         const libraryButton = event.target.closest("[data-library-action]");
+        if (libraryButton?.dataset.libraryAction === "delete-folder") {
+          void removeFolder(libraryButton.dataset.folderId);
+          return;
+        }
+        if (libraryButton?.dataset.libraryAction === "delete-record") {
+          void removeRecord(libraryButton.dataset.meetingId);
+          return;
+        }
         if (libraryButton?.dataset.libraryAction === "edit-folder") {
           const folder = folders.find((item) => item.id === libraryButton.dataset.folderId);
           if (!folder) return;
@@ -2235,6 +2411,7 @@
         }
         if (libraryButton?.dataset.libraryAction === "folder") {
           selectedFolderId = libraryButton.dataset.folderId;
+          folderSelectionExplicit = true;
           renderFolderSelect();
           void loadLibrary();
           return;
@@ -2257,6 +2434,7 @@
               resultUser = record.current_user;
               currentMeetingId = record.id;
               selectedFolderId = record.folder_id || selectedFolderId;
+              folderSelectionExplicit = true;
               document.querySelector("#user").value = record.current_user;
               void loadFolders(selectedFolderId);
               document.querySelector("#transcript").value = record.transcript;
@@ -2324,7 +2502,7 @@
           if (focusAction === "generate") {
             const transcript = document.querySelector("#transcript").value.trim();
             if (!transcript) {
-              focusMessage = "请先粘贴会议转写、上传录音，或加载测试转写。";
+              focusMessage = "请先粘贴转写内容、上传录音，或加载测试转写。";
               render();
               return;
             }

@@ -3,11 +3,13 @@ import re
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
-from app.models.history import MeetingHistoryPayload, RecordingFolderPayload, RecordingFolderUpdatePayload
+from app.models.history import FolderSuggestionPayload, MeetingHistoryPayload, RecordingFolderPayload, RecordingFolderUpdatePayload
 from app.models.meeting import MeetingAnalysis, MeetingFocusAnalysis, MeetingMarker
 from app.services.personal_memory import (
     build_personal_profile,
     create_folder,
+    delete_folder,
+    delete_meeting,
     get_folder,
     get_meeting,
     list_folders,
@@ -16,6 +18,7 @@ from app.services.personal_memory import (
     personal_context,
     personalization,
     save_meeting,
+    suggest_folder,
 )
 from app.services.meeting_analyzer import (
     analyze_personal_focus,
@@ -52,12 +55,28 @@ def create_meeting_folder(payload: RecordingFolderPayload) -> dict:
     return create_folder(payload.model_dump())
 
 
+@router.post("/meetings/folders/suggest")
+def suggest_meeting_folder(payload: FolderSuggestionPayload) -> dict:
+    return {"suggestion": suggest_folder(payload.current_user, payload.transcript, payload.meeting_title, payload.summary)}
+
+
 @router.put("/meetings/folders/{folder_id}")
 def update_meeting_folder(folder_id: str, payload: RecordingFolderUpdatePayload) -> dict:
     folder = update_folder(folder_id, payload.current_user, payload.keywords, payload.aliases)
     if not folder:
         raise HTTPException(status_code=404, detail="没有找到这个文件夹")
     return folder
+
+
+@router.delete("/meetings/folders/{folder_id}")
+def delete_meeting_folder(folder_id: str, current_user: str = "") -> dict:
+    try:
+        moved_count = delete_folder(folder_id, current_user)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if moved_count is None:
+        raise HTTPException(status_code=404, detail="没有找到这个文件夹")
+    return {"moved_count": moved_count}
 
 
 @router.get("/meetings/history/{meeting_id}")
@@ -81,6 +100,13 @@ def update_meeting_history(meeting_id: str, payload: MeetingHistoryPayload) -> d
     return save_meeting(payload.model_dump(), meeting_id=meeting_id)
 
 
+@router.delete("/meetings/history/{meeting_id}")
+def delete_meeting_history(meeting_id: str, current_user: str = "") -> dict:
+    if not delete_meeting(meeting_id, current_user):
+        raise HTTPException(status_code=404, detail="没有找到这条本地记录")
+    return {"deleted": True}
+
+
 @router.get("/meetings/profile")
 def meeting_profile(current_user: str = "", folder_id: str = "") -> dict:
     if not current_user.strip():
@@ -102,7 +128,7 @@ def analyze_focus(
     folder_id: str = Form(default=""),
 ) -> MeetingFocusAnalysis:
     if not transcript.strip():
-        raise HTTPException(status_code=422, detail="请先提供会议转写内容")
+        raise HTTPException(status_code=422, detail="请先提供转写内容")
     if not focus_query.strip():
         raise HTTPException(status_code=422, detail="请输入想关注的重点")
 
@@ -132,7 +158,7 @@ async def analyze_meeting(
             match.group(1).strip()
             for line in content.splitlines()
             if (match := re.match(r"^(?:\d{1,2}:\d{2}(?::\d{2})?\s+)?((?:说话人|Speaker)\s*\d+|[\u4e00-\u9fff]{1,8})[：:]", line.strip()))
-            and match.group(1).strip() not in {"会议主题", "参会人", "会议时长"}
+            and match.group(1).strip() not in {"会议主题", "录音主题", "对话主题", "主题", "参会人", "会议时长"}
         }
         confirmed = bool(current_user.strip() and confirmed_speaker.strip() in speakers)
         analysis_user = current_user.strip() if confirmed else ""

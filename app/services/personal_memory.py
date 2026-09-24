@@ -107,6 +107,33 @@ def list_folders(current_user: str) -> list[dict[str, Any]]:
     return folders
 
 
+def suggest_folder(current_user: str, transcript: str, meeting_title: str = "", summary: str = "") -> dict[str, Any] | None:
+    title = meeting_title.casefold()
+    overview = summary.casefold()
+    body = transcript.casefold()
+    ranked = []
+    for folder in list_folders(current_user):
+        if folder["is_default"]:
+            continue
+        matched = []
+        score = 0
+        for keyword in dict.fromkeys(item.strip().casefold() for item in folder["keywords"] if len(item.strip()) >= 2):
+            weight = 3 if keyword in title else 2 if keyword in overview else 1 if keyword in body else 0
+            if weight:
+                matched.append(keyword)
+                score += weight
+        ranked.append((score, folder, matched))
+
+    ranked.sort(key=lambda item: item[0], reverse=True)
+    if not ranked:
+        return None
+    score, folder, matched = ranked[0]
+    runner_up = ranked[1][0] if len(ranked) > 1 else 0
+    if len(matched) < 2 or score - runner_up < 2:
+        return None
+    return {"folder_id": folder["id"], "name": folder["name"], "matched_keywords": matched}
+
+
 def create_folder(payload: dict[str, Any]) -> dict[str, Any]:
     user = str(payload["current_user"]).strip()
     name = str(payload["name"]).strip()
@@ -146,6 +173,42 @@ def update_folder(folder_id: str, current_user: str, keywords: list[str], aliase
             return None
         row = connection.execute("SELECT * FROM recording_folders WHERE id = ?", (folder_id,)).fetchone()
     return _folder_from_row(row)
+
+
+def delete_folder(folder_id: str, current_user: str) -> int | None:
+    user = current_user.strip()
+    with _connection() as connection:
+        row = connection.execute(
+            "SELECT is_default FROM recording_folders WHERE id = ? AND current_user = ?",
+            (folder_id, user),
+        ).fetchone()
+        if row is None:
+            return None
+        if row["is_default"]:
+            raise ValueError("默认文件夹不能删除")
+        default_row = connection.execute(
+            "SELECT id FROM recording_folders WHERE current_user = ? AND is_default = 1",
+            (user,),
+        ).fetchone()
+        if default_row:
+            default_id = default_row["id"]
+        else:
+            default_id = str(uuid.uuid4())
+            connection.execute(
+                """INSERT INTO recording_folders
+                (id, current_user, name, keywords_json, aliases_json, is_default, created_at)
+                VALUES (?, ?, ?, ?, ?, 1, ?)""",
+                (default_id, user, "默认文件夹", "[]", json.dumps([user], ensure_ascii=False), datetime.now(timezone.utc).isoformat()),
+            )
+        moved = connection.execute(
+            "UPDATE saved_meetings SET folder_id = ? WHERE current_user = ? AND folder_id = ?",
+            (default_id, user, folder_id),
+        ).rowcount
+        connection.execute(
+            "DELETE FROM recording_folders WHERE id = ? AND current_user = ?",
+            (folder_id, user),
+        )
+    return moved
 
 
 def get_folder(folder_id: str, current_user: str) -> dict[str, Any] | None:
@@ -255,6 +318,15 @@ def get_meeting(meeting_id: str, current_user: str) -> dict[str, Any] | None:
             (meeting_id, current_user.strip()),
         ).fetchone()
     return _record_from_row(row, include_content=True) if row else None
+
+
+def delete_meeting(meeting_id: str, current_user: str) -> bool:
+    with _connection() as connection:
+        deleted = connection.execute(
+            "DELETE FROM saved_meetings WHERE id = ? AND current_user = ?",
+            (meeting_id, current_user.strip()),
+        ).rowcount
+    return bool(deleted)
 
 
 def build_personal_profile(current_user: str, folder_id: str = "") -> dict[str, Any]:

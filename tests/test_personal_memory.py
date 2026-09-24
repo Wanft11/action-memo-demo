@@ -16,6 +16,7 @@ from app.services.personal_memory import (
     personalization,
     relevant_feedback,
     save_meeting,
+    suggest_folder,
     ensure_default_folder,
 )
 
@@ -33,6 +34,77 @@ def payload(tasks):
 
 
 class PersonalMemoryTests(unittest.TestCase):
+    def test_deleting_a_record_requires_its_owner_and_removes_feedback(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            data_dir = Path(temp_dir) / ".action-memo"
+            database_path = data_dir / "action_memo.db"
+            with patch("app.services.personal_memory.DATA_DIR", data_dir), patch(
+                "app.services.personal_memory.DATABASE_PATH", database_path
+            ):
+                saved = save_meeting(payload([
+                    {"task": "画出产品流程", "assignee": "小万", "personal": True, "status": "已确认"},
+                ]))
+                client = TestClient(app)
+                url = f"/api/meetings/history/{saved['id']}"
+                self.assertEqual(client.delete(url, params={"current_user": "别人"}).status_code, 404)
+                self.assertIsNotNone(get_meeting(saved["id"], "小万"))
+                self.assertEqual(client.delete(url, params={"current_user": "小万"}).json(), {"deleted": True})
+                self.assertIsNone(get_meeting(saved["id"], "小万"))
+                self.assertEqual(build_personal_profile("小万")["confirmed_tasks"], [])
+
+    def test_deleting_a_folder_moves_its_records_to_default(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            data_dir = Path(temp_dir) / ".action-memo"
+            database_path = data_dir / "action_memo.db"
+            with patch("app.services.personal_memory.DATA_DIR", data_dir), patch(
+                "app.services.personal_memory.DATABASE_PATH", database_path
+            ):
+                folder = create_folder({
+                    "current_user": "小万", "name": "客户沟通", "keywords": ["客户"], "aliases": ["万哥"]
+                })
+                default_id = ensure_default_folder("小万")["id"]
+                saved = save_meeting({**payload([]), "folder_id": folder["id"]})
+                client = TestClient(app)
+                url = f"/api/meetings/folders/{folder['id']}"
+                self.assertEqual(client.delete(url, params={"current_user": "别人"}).status_code, 404)
+                self.assertEqual(client.delete(f"/api/meetings/folders/{default_id}", params={"current_user": "小万"}).status_code, 400)
+                self.assertEqual(client.delete(url, params={"current_user": "小万"}).json(), {"moved_count": 1})
+                self.assertIsNone(get_folder(folder["id"], "小万"))
+                self.assertEqual(get_meeting(saved["id"], "小万")["folder_id"], default_id)
+                self.assertEqual(len(list_meetings("小万")), 1)
+
+    def test_folder_suggestion_needs_two_keywords_and_a_clear_winner(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            data_dir = Path(temp_dir) / ".action-memo"
+            database_path = data_dir / "action_memo.db"
+            with patch("app.services.personal_memory.DATA_DIR", data_dir), patch(
+                "app.services.personal_memory.DATABASE_PATH", database_path
+            ):
+                client_folder = create_folder({
+                    "current_user": "小万", "name": "客户沟通", "keywords": ["客户", "报价", "续费"], "aliases": []
+                })
+                create_folder({
+                    "current_user": "小万", "name": "工作沟通", "keywords": ["产品", "评审"], "aliases": []
+                })
+                create_folder({
+                    "current_user": "别人", "name": "其他", "keywords": ["客户", "报价", "续费"], "aliases": []
+                })
+
+                suggestion = suggest_folder("小万", "请给客户更新报价，续费方案明天发送。", "客户回访")
+                self.assertEqual(suggestion["folder_id"], client_folder["id"])
+                self.assertEqual(suggestion["matched_keywords"], ["客户", "报价", "续费"])
+                self.assertEqual(suggest_folder("小万", "客户报价需要更新。 ")["folder_id"], client_folder["id"])
+                self.assertIsNone(suggest_folder("小万", "讨论客户需求。"))
+                self.assertIsNone(suggest_folder("小万", "客户报价和产品评审都要讨论。"))
+                self.assertIsNone(suggest_folder("陌生账号", "客户报价和续费都要讨论。"))
+
+                response = TestClient(app).post("/api/meetings/folders/suggest", json={
+                    "current_user": "小万", "transcript": "客户报价和续费都要讨论。"
+                })
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json()["suggestion"]["folder_id"], client_folder["id"])
+                self.assertEqual(list_meetings("小万"), [])
+
     def test_folder_metadata_can_be_edited_without_moving_meetings(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             data_dir = Path(temp_dir) / ".action-memo"

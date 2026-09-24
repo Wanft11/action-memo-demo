@@ -37,6 +37,11 @@ def task(title, assignee, evidence, deadline="待确认"):
 
 
 class MeetingAnalysisTests(unittest.TestCase):
+    def test_recording_titles_support_non_meeting_scenarios(self):
+        for label in ("主题", "录音主题", "对话主题", "会议主题"):
+            with self.subTest(label=label):
+                self.assertEqual(extract_meeting_title([f"{label}：周末出行安排"]), "周末出行安排")
+
     def test_self_commitment_requires_own_explicit_promise(self):
         self.assertTrue(has_explicit_self_commitment(
             "02:56 小万：好，我会把移动端审批的场景整理成两页说明。", "小万", "小万"

@@ -22,3 +22,10 @@ class RecordingFolderUpdatePayload(BaseModel):
     current_user: str = Field(min_length=1, max_length=80)
     keywords: list[str] = []
     aliases: list[str] = []
+
+
+class FolderSuggestionPayload(BaseModel):
+    current_user: str = Field(min_length=1, max_length=80)
+    transcript: str = Field(min_length=1)
+    meeting_title: str = ""
+    summary: str = ""
