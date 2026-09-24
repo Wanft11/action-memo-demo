@@ -2,7 +2,7 @@ import json
 import sqlite3
 import uuid
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -42,12 +42,100 @@ def _connection() -> sqlite3.Connection:
             name TEXT NOT NULL,
             keywords_json TEXT NOT NULL DEFAULT '[]',
             aliases_json TEXT NOT NULL DEFAULT '[]',
+            image_keywords_json TEXT NOT NULL DEFAULT '[]',
+            image_status TEXT NOT NULL DEFAULT '',
+            image_requested_at TEXT NOT NULL DEFAULT '',
             is_default INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL
         )
         """
     )
+    folder_columns = {row["name"] for row in connection.execute("PRAGMA table_info(recording_folders)")}
+    if "image_status" not in folder_columns:
+        connection.execute("ALTER TABLE recording_folders ADD COLUMN image_status TEXT NOT NULL DEFAULT ''")
+    if "image_keywords_json" not in folder_columns:
+        connection.execute("ALTER TABLE recording_folders ADD COLUMN image_keywords_json TEXT NOT NULL DEFAULT '[]'")
+    if "image_requested_at" not in folder_columns:
+        connection.execute("ALTER TABLE recording_folders ADD COLUMN image_requested_at TEXT NOT NULL DEFAULT ''")
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS personal_todos (
+            id TEXT PRIMARY KEY,
+            current_user TEXT NOT NULL,
+            title TEXT NOT NULL,
+            deadline TEXT NOT NULL DEFAULT '',
+            completed INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+        """
+    )
     return connection
+
+
+def _todo_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "id": row["id"],
+        "current_user": row["current_user"],
+        "title": row["title"],
+        "deadline": row["deadline"],
+        "completed": bool(row["completed"]),
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+    }
+
+
+def list_personal_todos(current_user: str) -> list[dict[str, Any]]:
+    if not current_user.strip():
+        return []
+    with _connection() as connection:
+        rows = connection.execute(
+            "SELECT * FROM personal_todos WHERE current_user = ? ORDER BY completed ASC, created_at DESC",
+            (current_user.strip(),),
+        ).fetchall()
+    return [_todo_from_row(row) for row in rows]
+
+
+def create_personal_todo(payload: dict[str, Any]) -> dict[str, Any]:
+    user = str(payload["current_user"]).strip()
+    title = str(payload["title"]).strip()
+    if not user or not title:
+        raise ValueError("账号和任务内容不能为空")
+    now = datetime.now(timezone.utc).isoformat()
+    todo_id = str(uuid.uuid4())
+    with _connection() as connection:
+        connection.execute(
+            "INSERT INTO personal_todos (id, current_user, title, deadline, completed, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (todo_id, user, title, str(payload.get("deadline") or "").strip(), int(bool(payload.get("completed", False))), now, now),
+        )
+        row = connection.execute("SELECT * FROM personal_todos WHERE id = ?", (todo_id,)).fetchone()
+    return _todo_from_row(row)
+
+
+def update_personal_todo(todo_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
+    user = str(payload["current_user"]).strip()
+    title = str(payload["title"]).strip()
+    if not user or not title:
+        raise ValueError("账号和任务内容不能为空")
+    with _connection() as connection:
+        changed = connection.execute(
+            """UPDATE personal_todos SET title = ?, deadline = ?, completed = ?, updated_at = ?
+            WHERE id = ? AND current_user = ?""",
+            (title, str(payload.get("deadline") or "").strip(), int(bool(payload.get("completed", False))), datetime.now(timezone.utc).isoformat(), todo_id, user),
+        ).rowcount
+        if not changed:
+            return None
+        row = connection.execute("SELECT * FROM personal_todos WHERE id = ?", (todo_id,)).fetchone()
+    return _todo_from_row(row)
+
+
+def delete_personal_todo(todo_id: str, current_user: str) -> bool:
+    with _connection() as connection:
+        deleted = connection.execute(
+            "DELETE FROM personal_todos WHERE id = ? AND current_user = ?",
+            (todo_id, current_user.strip()),
+        ).rowcount
+    return bool(deleted)
 
 
 def _folder_from_row(row: sqlite3.Row) -> dict[str, Any]:
@@ -57,6 +145,9 @@ def _folder_from_row(row: sqlite3.Row) -> dict[str, Any]:
         "name": row["name"],
         "keywords": json.loads(row["keywords_json"] or "[]"),
         "aliases": json.loads(row["aliases_json"] or "[]"),
+        "image_keywords": json.loads(row["image_keywords_json"] or "[]"),
+        "image_status": row["image_status"],
+        "image_available": (DATA_DIR / "folder-images" / f"{row['id']}.webp").is_file(),
         "is_default": bool(row["is_default"]),
     }
 
@@ -90,6 +181,11 @@ def list_folders(current_user: str) -> list[dict[str, Any]]:
         return []
     ensure_default_folder(user)
     with _connection() as connection:
+        connection.execute(
+            """UPDATE recording_folders SET image_status = 'failed'
+            WHERE current_user = ? AND image_status = 'pending' AND image_requested_at < ?""",
+            (user, (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()),
+        )
         rows = connection.execute(
             "SELECT * FROM recording_folders WHERE current_user = ? ORDER BY is_default DESC, created_at ASC",
             (user,),
@@ -142,19 +238,45 @@ def create_folder(payload: dict[str, Any]) -> dict[str, Any]:
     with _connection() as connection:
         connection.execute(
             """INSERT INTO recording_folders
-            (id, current_user, name, keywords_json, aliases_json, is_default, created_at)
-            VALUES (?, ?, ?, ?, ?, 0, ?)""",
+            (id, current_user, name, keywords_json, aliases_json, image_keywords_json, is_default, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, 0, ?)""",
             (
                 folder_id,
                 user,
                 name,
                 json.dumps([item.strip() for item in payload.get("keywords", []) if item.strip()], ensure_ascii=False),
                 json.dumps([item.strip() for item in payload.get("aliases", []) if item.strip()], ensure_ascii=False),
+                json.dumps(list(dict.fromkeys(item.strip() for item in payload.get("image_keywords", []) if item.strip())), ensure_ascii=False),
                 datetime.now(timezone.utc).isoformat(),
             ),
         )
         row = connection.execute("SELECT * FROM recording_folders WHERE id = ?", (folder_id,)).fetchone()
     return _folder_from_row(row)
+
+
+def set_folder_image_keywords(folder_id: str, current_user: str, keywords: list[str]) -> bool:
+    cleaned = list(dict.fromkeys(item.strip() for item in keywords if item.strip()))
+    with _connection() as connection:
+        changed = connection.execute(
+            """UPDATE recording_folders SET image_keywords_json = ?
+            WHERE id = ? AND current_user = ? AND is_default = 0""",
+            (json.dumps(cleaned, ensure_ascii=False), folder_id, current_user.strip()),
+        ).rowcount
+    return bool(changed)
+
+
+def set_folder_image_status(folder_id: str, current_user: str, status: str) -> bool:
+    if status not in {"pending", "ready", "failed", "unavailable"}:
+        raise ValueError("无效的图片状态")
+    requested_at = datetime.now(timezone.utc).isoformat() if status == "pending" else None
+    with _connection() as connection:
+        changed = connection.execute(
+            """UPDATE recording_folders
+            SET image_status = ?, image_requested_at = COALESCE(?, image_requested_at)
+            WHERE id = ? AND current_user = ? AND is_default = 0""",
+            (status, requested_at, folder_id, current_user.strip()),
+        ).rowcount
+    return bool(changed)
 
 
 def update_folder(folder_id: str, current_user: str, keywords: list[str], aliases: list[str]) -> dict[str, Any] | None:
@@ -208,6 +330,7 @@ def delete_folder(folder_id: str, current_user: str) -> int | None:
             "DELETE FROM recording_folders WHERE id = ? AND current_user = ?",
             (folder_id, user),
         )
+    (DATA_DIR / "folder-images" / f"{folder_id}.webp").unlink(missing_ok=True)
     return moved
 
 

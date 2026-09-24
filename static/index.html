@@ -453,6 +453,54 @@
         box-shadow: 0 6px 16px rgba(31, 35, 41, 0.05);
       }
 
+      .library-item.is-selected,
+      .folder-card.is-selected {
+        border-color: #4d7bff;
+        background: #f7faff;
+      }
+
+      .manage-check {
+        width: 20px;
+        height: 20px;
+        flex: 0 0 20px;
+        margin: 0;
+        accent-color: #3269ed;
+        cursor: pointer;
+      }
+
+      .folder-card > .manage-check {
+        position: absolute;
+        z-index: 1;
+        top: 12px;
+        right: 12px;
+      }
+
+      .manage-toolbar {
+        position: fixed;
+        z-index: 12;
+        right: 0;
+        bottom: calc(70px + env(safe-area-inset-bottom));
+        left: 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
+        width: min(100%, 500px);
+        min-height: 62px;
+        margin: 0 auto;
+        padding: 10px 16px;
+        border-top: 1px solid #dce5f5;
+        background: #fff;
+        box-shadow: 0 -7px 18px rgba(29, 47, 80, 0.08);
+      }
+
+      .manage-toolbar strong { color: #335ab8; font-size: 13px; }
+      .manage-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+      .manage-actions .btn { min-height: 36px; padding: 6px 9px; font-size: 12px; }
+      .shell.is-managing .results-screen .content { padding-bottom: 170px; }
+      .manage-button { border: 0; background: transparent; color: #2469e6; font-size: 14px; font-weight: 750; cursor: pointer; }
+
       .library-item-actions {
         display: flex;
         flex: 0 0 auto;
@@ -484,24 +532,8 @@
       }
 
       .library-item h3 {
-        margin: 0 0 5px;
+        margin: 0;
         font-size: 16px;
-      }
-
-      .library-stats {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        margin-top: 8px;
-      }
-
-      .library-stat {
-        border-radius: 999px;
-        background: #f2f5fb;
-        color: #5c6676;
-        padding: 4px 8px;
-        font-size: 12px;
-        font-weight: 700;
       }
 
       .library-toolbar {
@@ -575,13 +607,13 @@
       .folder-grid {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 10px;
+        gap: 16px;
         margin: 16px 0 20px;
       }
 
       .folder-card {
         position: relative;
-        min-height: 116px;
+        min-width: 0;
         border: 1px solid #e2e7f0;
         border-radius: 8px;
         background: #fff;
@@ -590,11 +622,12 @@
       }
 
       .folder-card-main {
-        display: grid;
+        display: flex;
+        flex-direction: column;
         width: 100%;
-        min-height: 116px;
-        gap: 6px;
-        padding: 14px 58px 14px 14px;
+        min-height: 218px;
+        gap: 5px;
+        padding: 14px;
         border: 0;
         background: transparent;
         color: inherit;
@@ -602,37 +635,22 @@
         text-align: left;
       }
 
-      .folder-card-edit {
-        position: absolute;
-        top: 12px;
-        right: 10px;
-        padding: 5px 7px;
-        border: 0;
-        border-radius: 4px;
-        background: transparent;
-        color: #4267d7;
-        cursor: pointer;
-        font-size: 12px;
-        font-weight: 650;
+      .folder-card-art {
+        display: grid;
+        width: 100%;
+        height: 148px;
+        place-items: center;
+        background: #fbfcff;
+        border-radius: 6px;
       }
 
-      .folder-card-edit:hover { background: #eaf0ff; }
-
-      .folder-card-delete {
-        position: absolute;
-        top: 42px;
-        right: 10px;
-        padding: 5px 7px;
-        border: 0;
-        border-radius: 4px;
-        background: transparent;
-        color: #b42318;
-        cursor: pointer;
-        font-size: 12px;
-        font-weight: 650;
+      .folder-card-art img {
+        display: block;
+        width: min(100%, 150px);
+        height: 142px;
+        object-fit: contain;
       }
 
-      .folder-card-delete:hover { background: #fff0ee; }
 
       .btn-danger {
         border-color: #f0b6ae;
@@ -661,6 +679,7 @@
         justify-content: space-between;
         align-items: center;
         gap: 8px;
+        width: 100%;
       }
 
       .folder-card strong {
@@ -674,13 +693,15 @@
         line-height: 1.4;
       }
 
-      .record-transcript { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line); }
-
-      .profile-list {
-        display: grid;
-        gap: 8px;
-        margin-top: 10px;
+      .folder-card small {
+        display: block;
+        width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
+
+      .record-transcript { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line); }
 
       .task-decision {
         display: flex;
@@ -981,6 +1002,13 @@
         font-size: 20px;
       }
 
+      #sampleDialog { max-height: calc(100dvh - 32px); overflow: hidden; }
+      #sampleDialog .sample-dialog-content { display: flex; flex-direction: column; max-height: calc(100dvh - 32px); }
+      #sampleDialog .sample-option-list { min-height: 0; overflow-y: auto; }
+      #sampleDialog .sample-dialog-top { justify-content: flex-start; align-items: flex-start; }
+      #sampleDialog .sample-dialog-top > div { min-width: 0; }
+      #sampleDialog .sample-dialog-top .icon-button { margin: -7px 0 0 -8px; }
+
       .sample-option-list {
         display: grid;
         gap: 9px;
@@ -1067,7 +1095,12 @@
       }
 
       @media (max-width: 560px) {
-        .folder-grid { grid-template-columns: 1fr; }
+        .folder-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+        .folder-card-main { min-height: 204px; padding: 8px; }
+        .folder-card-art { height: 120px; }
+        .folder-card-art img { height: 116px; width: min(100%, 122px); }
+        .folder-card strong { font-size: 13px; }
+        .folder-card span, .folder-card small { font-size: 11px; }
         .todo-edit { grid-template-columns: 1fr; }
         h1 {
           font-size: 27px;
@@ -1129,84 +1162,249 @@
           grid-template-columns: 1fr;
         }
       }
+
+      /* Phone-first navigation and the compact B-style home screen. */
+      body { background: #edf1f7; }
+      .shell { width: min(100%, 500px); min-height: 100dvh; margin: 0 auto; padding: 0 0 84px; background: #fff; box-shadow: 0 0 40px rgba(27, 47, 82, .08); }
+      .topbar { height: 84px; flex-direction: row; align-items: center; margin: 0; padding: 14px 22px; border: 0; background: #fff; }
+      .brand { display: block; flex: 1; min-width: 0; text-align: center; }
+      .brand h1 { font-size: 23px; line-height: 1.2; font-weight: 800; }
+      .brand .subtitle { margin: 3px 0 0; font-size: 13px; color: #8b95a6; }
+      .account-avatar { display: grid; place-items: center; width: 42px; height: 42px; flex: 0 0 42px; border: 0; border-radius: 50%; background: #eaf2ff; color: #2d65cf; font-size: 13px; font-weight: 750; white-space: nowrap; cursor: pointer; }
+      .topbar-spacer { width: 42px; flex: 0 0 42px; }
+      .icon-button { display: grid; place-items: center; width: 38px; height: 38px; flex: 0 0 38px; padding: 0; border: 0; background: transparent; color: #273343; cursor: pointer; }
+      .icon-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+      .icon { display: inline-block; width: 22px; height: 22px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; vertical-align: middle; }
+      .home-screen { padding: 14px 22px 28px; }
+      .home-record { display: flex; align-items: center; width: 100%; min-height: 118px; gap: 19px; padding: 21px 23px; border: 0; border-radius: 8px; background: #1767ef; color: #fff; box-shadow: 0 8px 18px rgba(27, 103, 239, .16); text-align: left; cursor: pointer; transition: background .16s, transform .16s; }
+      .home-record:hover { background: #095bdc; transform: translateY(-2px); }
+      .home-record-icon { width: 34px; height: 34px; stroke-width: 2.4; }
+      .home-record span { display: grid; gap: 7px; flex: 1; }
+      .home-record strong { font-size: 23px; line-height: 1.2; }
+      .home-record small { font-size: 13px; color: #dce9ff; }
+      .home-arrow { width: 18px; height: 18px; }
+      .home-links { margin-top: 17px; border: 1px solid #e6ebf3; border-radius: 8px; overflow: hidden; }
+      .home-link { display: flex; align-items: center; gap: 15px; width: 100%; min-height: 85px; padding: 13px 17px; border: 0; background: #fff; color: #1f2937; text-align: left; cursor: pointer; }
+      .home-link + .home-link { border-top: 1px solid #edf0f5; }
+      .home-link:hover { background: #f8faff; }
+      .home-link > span:nth-child(2) { display: grid; gap: 5px; flex: 1; min-width: 0; }
+      .home-link strong { font-size: 18px; line-height: 1.2; }
+      .home-link small { color: #7b8594; font-size: 12px; line-height: 1.35; }
+      .link-icon { display: grid; place-items: center; width: 45px; height: 45px; flex: 0 0 45px; border-radius: 8px; }
+      .link-icon .icon { width: 25px; height: 25px; stroke-width: 2.1; }
+      .link-icon--folder { color: #1767ef; background: #e8f1ff; }
+      .link-icon--tasks { color: #0c9b76; background: #e7f8f2; }
+      .link-chevron { width: 18px; height: 18px; color: #7f8997; }
+      .home-section { margin-top: 29px; }
+      .home-section-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+      .home-section-head h2 { margin: 0; font-size: 17px; line-height: 1.25; }
+      .home-section-head button { display: inline-flex; align-items: center; gap: 1px; padding: 4px 0; border: 0; background: transparent; color: #7b8594; font-size: 12px; cursor: pointer; }
+      .home-section-head .icon { width: 15px; height: 15px; }
+      .home-preview { border-top: 1px solid #e8edf4; }
+      .home-preview-row { display: flex; align-items: center; gap: 12px; min-height: 55px; padding: 9px 2px; border-bottom: 1px solid #e8edf4; color: #293241; }
+      .home-preview-row > span:nth-child(2) { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+      .home-preview-row small { color: #748091; white-space: nowrap; }
+      .home-preview-row .icon { width: 18px; height: 18px; color: #246de4; }
+      .home-preview-row--record { width: 100%; border-left: 0; border-right: 0; border-top: 0; background: transparent; text-align: left; cursor: pointer; }
+      .home-preview-row--record span:nth-child(2) { display: grid; gap: 3px; }
+      .home-preview-row--record strong { font-weight: 650; }
+      .home-preview-empty { padding: 15px 2px; color: #778293; font-size: 13px; }
+      .home-secondary { display: flex; gap: 10px; margin-top: 22px; }
+      .home-secondary button { display: inline-flex; align-items: center; gap: 6px; padding: 9px 12px; border: 1px solid #e4eaf3; border-radius: 8px; background: #fff; color: #586578; font-size: 13px; cursor: pointer; }
+      .home-secondary .icon { width: 16px; height: 16px; }
+      .bottom-nav { position: fixed; z-index: 10; bottom: 0; left: 50%; display: flex; width: min(100%, 500px); min-height: 70px; transform: translateX(-50%); border-top: 1px solid #e6ebf2; background: #fff; padding-bottom: env(safe-area-inset-bottom); box-shadow: 0 -4px 20px rgba(27, 47, 82, .03); }
+      .bottom-item { display: grid; flex: 1; justify-items: center; align-content: center; gap: 3px; border: 0; background: #fff; color: #808b9d; font-size: 12px; cursor: pointer; }
+      .bottom-item .icon { width: 22px; height: 22px; }
+      .bottom-item.active { color: #1767ef; font-weight: 700; }
+      .screen-header { display: flex; align-items: center; justify-content: space-between; min-height: 60px; padding: 9px 16px; border-bottom: 1px solid #edf0f4; }
+      .screen-header h2 { min-width: 0; flex: 1; }
+      .screen-header-actions { display: flex; align-items: center; gap: 8px; }
+      .shell:not(.is-home) .topbar { display: none; }
+      .screen-header h2 { margin: 0; font-size: 19px; line-height: 1.25; text-align: center; }
+      .screen-header > span { width: 38px; }
+      .input-screen, .results-screen { border: 0; border-radius: 0; box-shadow: none; }
+      .input-screen .panel-header { padding: 18px 22px 0; }
+      .input-screen .controls { padding: 20px 22px 30px; gap: 18px; }
+      .input-mode { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 8px; background: #f1f4f9; }
+      .input-mode button { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 42px; border: 0; border-radius: 6px; background: transparent; color: #687586; font-size: 14px; font-weight: 700; cursor: pointer; }
+      .input-mode button[aria-pressed="true"] { background: #fff; color: #1767ef; box-shadow: 0 2px 8px rgba(25, 54, 103, .09); }
+      .input-mode .icon { width: 17px; height: 17px; }
+      .input-pane { display: grid; gap: 12px; }
+      .input-pane[hidden] { display: none; }
+      .input-pane textarea { min-height: 230px; }
+      .input-pane .file-picker { min-height: 96px; padding: 16px; border-style: dashed; background: #f8fbff; }
+      .input-pane .file-picker-button { background: #e8f1ff; }
+      .sample-trigger { justify-self: start; border: 0; background: transparent; padding: 4px 0; color: #2469e6; font-size: 13px; font-weight: 700; cursor: pointer; }
+      .recording-settings { border-top: 1px solid #e8edf4; border-bottom: 1px solid #e8edf4; padding: 2px 0; }
+      .recording-settings summary { display: flex; align-items: center; gap: 8px; min-height: 56px; cursor: pointer; list-style: none; }
+      .recording-settings summary::-webkit-details-marker { display: none; }
+      .recording-settings summary strong { font-size: 15px; }
+      .recording-settings summary span { min-width: 0; flex: 1; overflow: hidden; color: #7d8998; font-size: 12px; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+      .recording-settings summary .icon { width: 17px; height: 17px; color: #7d8998; transform: rotate(90deg); transition: transform 160ms ease; }
+      .recording-settings[open] summary .icon { transform: rotate(-90deg); }
+      .recording-settings-body { display: grid; gap: 17px; padding: 6px 0 18px; }
+      .input-primary-actions { display: grid; gap: 10px; }
+      .input-primary-actions .btn { min-height: 48px; }
+      .input-primary-actions #pauseBtn { border-color: #cfdbeb; color: #3864a4; }
+      .result-actions { display: flex; flex-wrap: wrap; gap: 9px; padding: 14px 22px 0; }
+      .result-actions .btn { flex: 1 1 0; min-height: 42px; }
+      .result-actions #saveBtn { flex-basis: 100%; }
+      .result-actions #resultStatus { flex-basis: 100%; }
+      .results-screen .tabs { display: none; }
+      .results-screen .content { padding: 22px; }
+      .results-screen .hero-metric { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+      .results-screen .metric { padding: 11px 8px; }
+      .results-screen .metric strong { font-size: 20px; }
+      .results-screen .metric span { font-size: 11px; }
+      .results-screen .folder-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .results-screen .todo-edit { grid-template-columns: 1fr; }
+      .results-screen .library-item { align-items: flex-start; flex-direction: column; }
+      .results-screen .library-toolbar { grid-template-columns: 1fr; }
+      .results-screen .todo-toggle { min-height: 62px; }
+      .results-screen .todo-title { font-size: 16px; }
+      .results-screen .todo-deadline { font-size: 12px; }
+      .results-screen .todo-main { align-items: flex-start; flex-direction: column; gap: 4px; }
+      .results-screen .todo-toggle:hover { color: var(--ink); }
+      .results-screen .todo-section + .todo-section { margin: 24px -22px 0; padding: 22px 22px 0; border-top: 8px solid #f3f5f8; }
+      .results-screen .todo-detail { padding-left: 24px; }
+      .results-screen .panel-title { font-size: 18px; }
+      .results-screen .todo-item { position: relative; display: flex; flex-wrap: wrap; align-items: center; }
+      .results-screen .todo-toggle { width: auto; min-width: 0; flex: 1; }
+      .results-screen .todo-detail { flex-basis: 100%; }
+      .results-screen .todo-item--done .todo-title { color: #8994a3; text-decoration: line-through; }
+      .results-screen .todo-item--done .todo-bullet { color: #98a4b3; }
+      .results-screen .todo-check { width: 19px; height: 19px; flex: 0 0 19px; margin: 0 11px 0 2px; accent-color: #1767ef; cursor: pointer; }
+      .results-screen .todo-manual-note { margin: 8px 0; color: #8792a1; font-size: 12px; }
+      .results-screen .todo-heading { justify-content: space-between; }
+      .results-screen .todo-heading .icon-button { width: 32px; height: 32px; margin-left: auto; color: #1767ef; }
+      .todo-form-actions { display: flex; gap: 9px; margin-top: 18px; }
+      .todo-form-actions .btn { flex: 1; }
+      .results-screen .library-context { display: flex; align-items: center; gap: 12px; margin: 12px 0; color: #778395; font-size: 13px; }
+      .results-screen .library-toolbar { display: flex; gap: 8px; margin: 14px 0; }
+      .results-screen .library-toolbar .input { min-width: 0; flex: 1; }
+      .results-screen .library-toolbar .btn { flex: 0 0 auto; }
+      .results-screen .library-list { gap: 0; border-top: 1px solid #e8edf4; }
+      .results-screen .library-item { display: flex; flex-direction: row; align-items: center; gap: 3px; padding: 0; border: 0; border-bottom: 1px solid #e8edf4; border-radius: 0; box-shadow: none; }
+      .results-screen .library-item-main { display: flex; flex: 1; align-items: center; gap: 12px; min-width: 0; padding: 13px 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+      .results-screen .library-item-copy { min-width: 0; }
+      .results-screen .library-item-copy h3 { margin: 0; font-size: 15px; }
+      .results-screen .library-type { display: grid; place-items: center; width: 35px; height: 35px; flex: 0 0 35px; border-radius: 50%; background: #edf4ff; color: #226ce9; }
+      .results-screen .library-type .icon { width: 16px; height: 16px; }
+      .results-screen .library-item-actions { width: auto; flex: 0 0 auto; }
+      .results-screen .library-item-actions .btn { width: 36px; min-height: 36px; padding: 0; border: 0; color: #8995a6; }
+      .results-screen .library-item-actions .icon { width: 17px; height: 17px; }
+      [hidden] { display: none !important; }
+      @media (max-width: 560px) {
+        .shell { padding: 0 0 84px; }
+        .topbar { flex-direction: row; align-items: center; padding: 14px 18px; }
+        .brand h1 { font-size: 21px; }
+        .home-screen { padding: 10px 17px 26px; }
+        .input-screen .panel-header, .input-screen .controls, .results-screen .content { padding-left: 17px; padding-right: 17px; }
+        .results-screen .todo-section + .todo-section { margin-left: -17px; margin-right: -17px; padding-left: 17px; padding-right: 17px; }
+        .button-row .btn { flex: 1 1 calc(50% - 5px); }
+        .button-row .btn-primary { flex-basis: 100%; }
+        .result-actions { padding-left: 17px; padding-right: 17px; }
+      }
     </style>
   </head>
   <body>
-    <div class="shell">
+    <div class="shell is-home">
       <header class="topbar">
-        <div class="brand">
-          <div class="device-dot" aria-hidden="true"></div>
-          <div>
-            <h1>Action Memo</h1>
-            <p class="subtitle">录音豆 · 你的下一步行动，一眼看清</p>
-          </div>
-        </div>
-        <div class="status-pill">设备状态：录音豆在线</div>
+        <button class="account-avatar" id="accountBtn" type="button" aria-label="个人设置" title="个人设置">小万</button>
+        <div class="brand"><h1>Action Memo</h1><p class="subtitle">把对话变成行动</p></div>
+        <span class="topbar-spacer" aria-hidden="true"></span>
       </header>
 
-      <main class="grid">
-        <section class="panel">
-          <div class="panel-header">
-            <h2 class="panel-title">录音与文字输入</h2>
-            <p class="panel-note">配置 API Key 后可识别真实录音；未配置时自动使用黑客松模拟结果。</p>
+      <main>
+        <section class="home-screen" id="homeScreen">
+          <button class="home-record" type="button" data-open-screen="input">
+            <svg class="icon home-record-icon"><use href="#icon-mic" /></svg>
+            <span><strong>录音转写</strong><small>上传录音，生成待办</small></span>
+            <svg class="icon home-arrow"><use href="#icon-chevron-right" /></svg>
+          </button>
+          <div class="home-links">
+            <button class="home-link" type="button" data-open-tab="library" data-library-view="folders"><span class="link-icon link-icon--folder"><svg class="icon"><use href="#icon-folder" /></svg></span><span><strong>文件夹</strong><small>按场景整理录音与文字</small></span><svg class="icon link-chevron"><use href="#icon-chevron-right" /></svg></button>
+            <button class="home-link" type="button" data-open-tab="task-list"><span class="link-icon link-icon--tasks"><svg class="icon"><use href="#icon-check-square" /></svg></span><span><strong>任务清单</strong><small>查看我的任务与待确认项</small></span><svg class="icon link-chevron"><use href="#icon-chevron-right" /></svg></button>
           </div>
+          <section class="home-section">
+            <div class="home-section-head"><h2>待办速览</h2><button type="button" data-open-tab="task-list">查看全部 <svg class="icon"><use href="#icon-chevron-right" /></svg></button></div>
+            <div id="homeTasks" class="home-preview"></div>
+          </section>
+          <section class="home-section">
+            <div class="home-section-head"><h2>最近记录</h2><button type="button" data-open-tab="library" data-library-view="folders">查看文件夹 <svg class="icon"><use href="#icon-chevron-right" /></svg></button></div>
+            <div id="homeRecent" class="home-preview"></div>
+          </section>
+        </section>
+
+        <section class="panel input-screen" id="inputScreen" hidden>
+          <div class="screen-header"><button class="icon-button" type="button" data-open-screen="home" aria-label="返回首页"><svg class="icon"><use href="#icon-arrow-left" /></svg></button><h2>录音转写</h2><span></span></div>
           <div class="controls">
-            <div class="field">
-              <label for="user">我的账号</label>
-              <input class="input" id="user" value="小万" placeholder="例如：小万" />
+            <input id="user" type="hidden" value="小万" />
+            <div class="input-mode" role="group" aria-label="输入方式">
+              <button type="button" data-input-mode="audio" aria-pressed="true"><svg class="icon"><use href="#icon-mic" /></svg>上传录音</button>
+              <button type="button" data-input-mode="text" aria-pressed="false"><svg class="icon"><use href="#icon-file-text" /></svg>粘贴文字</button>
             </div>
 
-            <div class="field">
-              <label for="folder">归档文件夹</label>
-              <div class="folder-select-row">
-                <select class="input" id="folder" disabled>
-                  <option>填写账号后加载文件夹</option>
-                </select>
-                <button class="btn" id="newFolderBtn" type="button" disabled>新建</button>
+            <div class="input-pane" id="audioPane">
+              <div class="field">
+                <label for="audio">录音文件</label>
+                <label class="file-picker" for="audio">
+                  <span class="file-picker-button">选择录音</span>
+                  <span class="file-picker-name" id="audioFileName">尚未选择录音文件</span>
+                </label>
+                <input class="native-file-input" id="audio" type="file" accept="audio/*,video/mp4,.mp3,.mp4,.mpeg,.mpga,.m4a,.wav,.webm" />
               </div>
-              <p class="folder-hint" id="folderHint">不选择时将自动归档到默认文件夹。</p>
+              <p class="folder-hint">支持 MP3、M4A、WAV、MP4 等格式。</p>
             </div>
 
-            <div class="field">
-              <label for="audio">录音文件</label>
-              <label class="file-picker" for="audio">
-                <span class="file-picker-button">选择录音</span>
-                <span class="file-picker-name" id="audioFileName">尚未选择录音文件</span>
-              </label>
-              <input class="native-file-input" id="audio" type="file" accept="audio/*,video/mp4,.mp3,.mp4,.mpeg,.mpga,.m4a,.wav,.webm" />
+            <div class="input-pane" id="textPane" hidden>
+              <div class="field">
+                <label for="transcript">转写内容</label>
+                <textarea id="transcript" placeholder="粘贴对话文字，每句话可附上时间戳与说话人。"></textarea>
+              </div>
+              <button class="sample-trigger" id="sampleBtn" type="button">加载测试转写</button>
             </div>
 
-            <div class="field">
-              <label for="transcript">转写内容</label>
-              <textarea id="transcript" placeholder="可选：粘贴对话文字后直接生成任务；上传录音时留空即可。"></textarea>
-            </div>
+            <details class="recording-settings" id="recordingSettings">
+              <summary><strong>本次设置</strong><span id="settingsSummary">默认文件夹</span><svg class="icon"><use href="#icon-chevron-right" /></svg></summary>
+              <div class="recording-settings-body">
+                <div class="field">
+                  <label for="folder">归档文件夹</label>
+                  <div class="folder-select-row">
+                    <select class="input" id="folder" disabled><option>填写账号后加载文件夹</option></select>
+                    <button class="btn" id="newFolderBtn" type="button" disabled>新建</button>
+                  </div>
+                  <p class="folder-hint" id="folderHint">不选择时将自动归档到默认文件夹。</p>
+                </div>
 
-            <div class="field" id="speakerField">
-              <label for="confirmedSpeaker">谁是我（请确认）</label>
-              <select class="input" id="confirmedSpeaker">
-                <option value="">暂不确认，稍后认领任务</option>
-              </select>
-              <p class="panel-note" id="speakerHint">上传真实录音时，如果转写没有区分说话人，任务不会自动归入“我的任务清单”。</p>
-            </div>
+                <div class="field" id="speakerField">
+                  <label for="confirmedSpeaker">谁是我（请确认）</label>
+                  <select class="input" id="confirmedSpeaker"><option value="">暂不确认，稍后认领任务</option></select>
+                  <p class="panel-note" id="speakerHint">上传真实录音时，如果转写没有区分说话人，任务不会自动归入“我的任务清单”。</p>
+                </div>
+                <div class="device-marker-summary" id="markers">录音豆重点会在设备按压后自动同步到这里。</div>
+              </div>
+            </details>
 
-            <div class="button-row">
+            <div class="input-primary-actions">
               <button class="btn btn-primary" id="analyzeBtn" type="button">生成任务清单</button>
-              <button class="btn" id="saveBtn" type="button" disabled>保存到录音库</button>
-              <button class="btn btn-focus" id="focusBtn" type="button">个人重点</button>
-              <button class="btn" id="pauseBtn" type="button" disabled>暂停生成</button>
-              <button class="btn" id="sampleBtn" type="button">加载测试转写</button>
+              <button class="btn" id="pauseBtn" type="button" hidden>暂停生成</button>
             </div>
             <p class="panel-note" id="generationStatus" aria-live="polite"></p>
-
-            <div class="device-marker-summary" id="markers">录音豆重点会在设备按压后自动同步到这里。</div>
           </div>
         </section>
 
-        <section class="panel">
+        <section class="panel results-screen" id="resultsScreen" hidden>
+          <div class="screen-header"><button class="icon-button" type="button" data-open-screen="home" aria-label="返回首页"><svg class="icon"><use href="#icon-arrow-left" /></svg></button><h2 id="screenTitle">任务清单</h2><div class="screen-header-actions"><button class="manage-button" id="manageBtn" type="button" hidden>管理</button><button class="icon-button" id="screenActionBtn" type="button" aria-label="添加待办" title="添加待办"><svg class="icon"><use href="#icon-plus" /></svg></button></div></div>
+          <div class="result-actions" id="resultActions" hidden>
+            <button class="btn btn-primary" id="saveBtn" type="button" disabled>保存到文件夹</button>
+            <button class="btn" id="focusBtn" type="button">个人重点</button>
+            <button class="btn" id="recordBtn" type="button">内容记录</button>
+            <p class="panel-note" id="resultStatus" role="status"></p>
+          </div>
           <div class="tabs">
             <button class="tab active" data-tab="task-list" type="button">任务清单</button>
-            <button class="tab" data-tab="library" type="button">录音库</button>
-            <button class="tab" data-tab="profile" type="button">个人画像</button>
+            <button class="tab" data-tab="library" type="button">文件夹</button>
             <button class="tab" data-tab="focus" type="button">个人重点</button>
             <button class="tab" data-tab="record" type="button">内容记录</button>
           </div>
@@ -1215,16 +1413,57 @@
           </div>
         </section>
       </main>
+      <nav class="bottom-nav" aria-label="主导航">
+        <button class="bottom-item active" type="button" data-open-screen="home"><svg class="icon"><use href="#icon-house" /></svg><span>首页</span></button>
+        <button class="bottom-item" type="button" data-open-tab="task-list"><svg class="icon"><use href="#icon-list" /></svg><span>任务</span></button>
+        <button class="bottom-item" type="button" data-open-tab="library" data-library-view="folders"><svg class="icon"><use href="#icon-folder" /></svg><span>文件夹</span></button>
+      </nav>
     </div>
+
+    <svg class="icon-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
+      <symbol id="icon-mic" viewBox="0 0 24 24"><path d="M12 19v3m-4 0h8M12 15a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v7a3 3 0 0 0 3 3Zm7-4v1a7 7 0 0 1-14 0v-1" /></symbol>
+      <symbol id="icon-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" /></symbol>
+      <symbol id="icon-check-square" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m8 12 3 3 5-6"/></symbol>
+      <symbol id="icon-audio-lines" viewBox="0 0 24 24"><path d="M2 10v4m4-8v12m4-16v20m4-14v8m4-11v14m4-9v4"/></symbol>
+      <symbol id="icon-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+      <symbol id="icon-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M5 12h14"/></symbol>
+      <symbol id="icon-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l-1.8 1.8a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6h-2.5a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-1.8-1.8a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H4v-2.5a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l1.8-1.8a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6h2.5a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l1.8 1.8a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1V14a1.7 1.7 0 0 0-1.1 1Z"/></symbol>
+      <symbol id="icon-house" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z"/></symbol>
+      <symbol id="icon-list" viewBox="0 0 24 24"><path d="M9 6h12M9 12h12M9 18h12M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+      <symbol id="icon-file-text" viewBox="0 0 24 24"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Zm0 0v7h7M8 14h8M8 18h8"/></symbol>
+      <symbol id="icon-play" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7Z"/></symbol>
+      <symbol id="icon-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2m3 0-1 15H6L5 6m5 4v7m4-7v7"/></symbol>
+      <symbol id="icon-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></symbol>
+      <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    </defs></svg>
+
+    <dialog class="sample-dialog" id="accountDialog" aria-labelledby="accountDialogTitle">
+      <form class="sample-dialog-content" id="accountForm">
+        <div class="sample-dialog-top"><h2 class="sample-dialog-title" id="accountDialogTitle">个人设置</h2><button class="icon-button" type="button" data-close-dialog="accountDialog" aria-label="关闭"><svg class="icon"><use href="#icon-plus" style="transform:rotate(45deg);transform-origin:center" /></svg></button></div>
+        <div class="field"><label for="accountName">当前使用身份</label><input class="input" id="accountName" maxlength="40" required autocomplete="off" /></div>
+        <p class="panel-note">这是本机 Demo 的身份名称，不是登录账号。更换名称会切换到该名称下的记录。</p>
+        <div class="todo-form-actions"><button class="btn btn-primary" type="submit">保存</button></div>
+      </form>
+    </dialog>
+
+    <dialog class="sample-dialog" id="todoDialog" aria-labelledby="todoDialogTitle">
+      <form class="sample-dialog-content" id="todoForm">
+        <div class="sample-dialog-top"><div><h2 class="sample-dialog-title" id="todoDialogTitle">添加待办</h2><p class="panel-note">手动待办会保存在当前账号下。</p></div><button class="icon-button" type="button" data-close-dialog="todoDialog" aria-label="关闭"><svg class="icon"><use href="#icon-plus" style="transform:rotate(45deg);transform-origin:center" /></svg></button></div>
+        <div class="field"><label for="todoTitle">要做什么</label><input class="input" id="todoTitle" maxlength="200" required placeholder="例如：整理周五的演示材料" /></div>
+        <div class="field" style="margin-top:14px"><label for="todoDeadline">截止时间（可选）</label><input class="input" id="todoDeadline" maxlength="80" placeholder="例如：周五 18:00" /></div>
+        <p class="panel-note" id="todoFormError" role="alert"></p>
+        <div class="todo-form-actions"><button class="btn btn-primary" type="submit">添加待办</button></div>
+      </form>
+    </dialog>
 
     <dialog class="sample-dialog" id="sampleDialog" aria-labelledby="sampleDialogTitle">
       <div class="sample-dialog-content">
         <div class="sample-dialog-top">
+          <button class="icon-button" type="button" data-sample-action="close" aria-label="关闭测试转写选择" title="关闭"><svg class="icon"><use href="#icon-plus" style="transform:rotate(45deg);transform-origin:center" /></svg></button>
           <div>
             <h2 class="sample-dialog-title" id="sampleDialogTitle">选择一份测试转写</h2>
             <p class="panel-note">加载后请确认哪位说话人是你；不确定时可先生成候选任务。</p>
           </div>
-          <button class="btn" type="button" data-sample-action="close" aria-label="关闭测试转写选择">关闭</button>
         </div>
         <div class="sample-option-list" id="sampleOptionList"></div>
       </div>
@@ -1235,7 +1474,7 @@
         <div class="sample-dialog-top">
           <div>
             <h2 class="sample-dialog-title" id="folderDialogTitle">新建场景文件夹</h2>
-            <p class="panel-note">同一账号在不同场景下的称呼、关键词和确认记录会分开学习。</p>
+            <p class="panel-note">场景关键词用于归档判断；图标关键词只用于选择画面物件。创建后将调用图片 API，可能产生费用。</p>
           </div>
           <button class="btn" type="button" data-folder-action="close">关闭</button>
         </div>
@@ -1251,8 +1490,35 @@
           <label for="folderAliases">这个场景中对我的称呼</label>
           <input class="input" id="folderAliases" placeholder="用顿号或逗号分隔，例如：爸爸、老万" />
         </div>
+        <div class="field" style="margin-top: 14px">
+          <label for="folderImageKeywords">图标物件关键词（可选）</label>
+          <input class="input" id="folderImageKeywords" placeholder="例如：相框、绿植、钥匙" />
+          <p class="folder-hint">留空时使用场景关键词；不会影响归档。</p>
+        </div>
+        <p class="panel-note" id="folderCreateError" role="alert"></p>
         <div class="button-row" style="margin-top: 18px">
           <button class="btn btn-primary" type="submit">创建文件夹</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="sample-dialog" id="folderImageDialog" aria-labelledby="folderImageDialogTitle">
+      <form class="sample-dialog-content" id="folderImageForm">
+        <div class="sample-dialog-top">
+          <div>
+            <h2 class="sample-dialog-title" id="folderImageDialogTitle">生成场景图标</h2>
+            <p class="panel-note" id="folderImageName"></p>
+          </div>
+          <button class="btn" type="button" data-folder-image-action="close">关闭</button>
+        </div>
+        <div class="field">
+          <label for="folderImagePromptKeywords">希望图标出现的物件</label>
+          <input class="input" id="folderImagePromptKeywords" placeholder="例如：相框、绿植、钥匙" />
+          <p class="folder-hint">最多 8 个关键词，用顿号或逗号分隔；留空时使用场景关键词。每次生成可能消耗 API 额度。</p>
+        </div>
+        <p class="panel-note" id="folderImageError" role="alert"></p>
+        <div class="button-row" style="margin-top: 18px">
+          <button class="btn btn-primary" type="submit">生成图标</button>
         </div>
       </form>
     </dialog>
@@ -1307,6 +1573,7 @@
       const markers = [];
       let result = null;
       let resultUser = "";
+      let inputMode = "audio";
       let activeTab = "task-list";
       let editingTaskKey = "";
       let editingTodoKey = "";
@@ -1323,11 +1590,23 @@
       let libraryMessage = "";
       let libraryNotice = "";
       let libraryQuery = "";
-      let profile = null;
       let folders = [];
+      let folderImageTimer = null;
+      let folderImagePollAttempts = 0;
+      let folderManageMode = false;
+      const managedFolderIds = new Set();
       let selectedFolderId = "";
       let folderSelectionExplicit = false;
       let editingFolderId = "";
+      let editingFolderImageId = "";
+      let activeScreen = "home";
+      let libraryView = "folders";
+      let libraryScope = "all";
+      let libraryFolderId = "";
+      let recentRecords = [];
+      let homePreviewAnalysis = null;
+      let manualTodos = [];
+      let todoNotice = "";
 
       const testSamples = [
         {
@@ -1374,6 +1653,7 @@
       ];
 
       const content = document.querySelector("#content");
+      const manageBtn = document.querySelector("#manageBtn");
       const markersEl = document.querySelector("#markers");
       const analyzeBtn = document.querySelector("#analyzeBtn");
       const saveBtn = document.querySelector("#saveBtn");
@@ -1385,6 +1665,8 @@
       const newFolderBtn = document.querySelector("#newFolderBtn");
       const folderDialog = document.querySelector("#folderDialog");
       const folderForm = document.querySelector("#folderForm");
+      const folderImageDialog = document.querySelector("#folderImageDialog");
+      const folderImageForm = document.querySelector("#folderImageForm");
       const folderEditDialog = document.querySelector("#folderEditDialog");
       const folderEditForm = document.querySelector("#folderEditForm");
       const folderSuggestionDialog = document.querySelector("#folderSuggestionDialog");
@@ -1392,11 +1674,39 @@
       const audioInput = document.querySelector("#audio");
       const audioFileName = document.querySelector("#audioFileName");
       const focusBtn = document.querySelector("#focusBtn");
+      const recordBtn = document.querySelector("#recordBtn");
       const pauseBtn = document.querySelector("#pauseBtn");
       const generationStatus = document.querySelector("#generationStatus");
+      const resultStatus = document.querySelector("#resultStatus");
       const transcriptInput = document.querySelector("#transcript");
       const confirmedSpeaker = document.querySelector("#confirmedSpeaker");
       const speakerHint = document.querySelector("#speakerHint");
+      const accountDialog = document.querySelector("#accountDialog");
+      const accountForm = document.querySelector("#accountForm");
+      const todoDialog = document.querySelector("#todoDialog");
+      const todoForm = document.querySelector("#todoForm");
+
+      try {
+        const savedUser = localStorage.getItem("action-memo-current-user");
+        if (savedUser) document.querySelector("#user").value = savedUser;
+      } catch { /* Keep the demo usable if browser storage is unavailable. */ }
+
+      function setInputMode(mode) {
+        inputMode = mode;
+        document.querySelector("#audioPane").hidden = mode !== "audio";
+        document.querySelector("#textPane").hidden = mode !== "text";
+        document.querySelectorAll("[data-input-mode]").forEach((button) => {
+          button.setAttribute("aria-pressed", String(button.dataset.inputMode === mode));
+        });
+      }
+
+      document.querySelectorAll("[data-input-mode]").forEach((button) => {
+        button.addEventListener("click", () => setInputMode(button.dataset.inputMode));
+      });
+
+      function updateSettingsSummary() {
+        document.querySelector("#settingsSummary").textContent = selectedFolder()?.name || "默认文件夹";
+      }
 
       function updateSpeakerOptions() {
         const previous = confirmedSpeaker.value;
@@ -1430,7 +1740,58 @@
       }
 
       function taskKey(task) {
+        if (task.manual) return `manual:${task.id}`;
         return `${task.task}|${task.assignee}|${task.source}`;
+      }
+
+      function manualTodoAsTask(todo) {
+        return { manual: true, id: todo.id, task: todo.title, deadline: todo.deadline,
+          completed: todo.completed, assignee: currentUser(), source: "手动添加", evidence: "" };
+      }
+
+      async function loadManualTodos() {
+        const user = currentUser();
+        if (!user) {
+          manualTodos = [];
+          render();
+          return;
+        }
+        try {
+          const response = await fetch(`/api/meetings/todos?current_user=${encodeURIComponent(user)}`);
+          if (!response.ok) throw new Error("加载失败");
+          const todos = await response.json();
+          if (currentUser() !== user) return;
+          manualTodos = todos;
+          todoNotice = "";
+        } catch {
+          if (currentUser() !== user) return;
+          todoNotice = "手动待办暂时无法加载，请稍后重试。";
+        }
+        render();
+      }
+
+      async function updateManualTodo(todo, fields) {
+        const response = await fetch(`/api/meetings/todos/${encodeURIComponent(todo.id)}`, {
+          method: "PUT", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ current_user: currentUser(), title: fields.title ?? todo.title,
+            deadline: fields.deadline ?? todo.deadline, completed: fields.completed ?? todo.completed }),
+        });
+        if (!response.ok) throw new Error("保存待办失败");
+        const updated = await response.json();
+        manualTodos = manualTodos.map((item) => item.id === todo.id ? updated : item);
+        return updated;
+      }
+
+      function toggleGeneratedTask(key, completed) {
+        if (!result) return;
+        for (const field of ["all_tasks", "my_tasks"]) {
+          for (const task of result[field] || []) {
+            if (taskKey(task) === key) task.completed = completed;
+          }
+        }
+        todoNotice = currentMeetingId ? "" : "这条录音还未保存，完成状态会在保存后保留。";
+        render();
+        updateSavedMeeting();
       }
 
       function escapeHtml(value) {
@@ -1442,12 +1803,88 @@
           .replaceAll("'", "&#039;");
       }
 
+      function updateFolderManageControls() {
+        const onFolders = activeScreen === "view" && activeTab === "library" && libraryView === "folders";
+        if (!onFolders) {
+          folderManageMode = false;
+          managedFolderIds.clear();
+        }
+        manageBtn.hidden = !onFolders;
+        manageBtn.textContent = folderManageMode ? "完成" : "管理";
+        document.querySelector("#screenActionBtn").hidden = onFolders && folderManageMode;
+        document.querySelector(".shell").classList.toggle("is-managing", onFolders && folderManageMode);
+      }
+
       function activateTab(tabName) {
         activeTab = tabName;
         document.querySelectorAll(".tab").forEach((item) => {
           item.classList.toggle("active", item.dataset.tab === tabName);
         });
+        document.querySelector("#screenTitle").textContent = ({
+          "task-list": "任务清单", library: libraryView === "folders" ? "文件夹" : "记录",
+          focus: "个人重点", record: "内容记录",
+        })[tabName] || "Action Memo";
+        const action = document.querySelector("#screenActionBtn");
+        const isTasks = tabName === "task-list";
+        action.setAttribute("aria-label", isTasks ? "添加待办" : "录音转写");
+        action.title = isTasks ? "添加待办" : "录音转写";
+        action.querySelector("use").setAttribute("href", isTasks ? "#icon-plus" : "#icon-mic");
         render();
+        openScreen("view");
+      }
+
+      function openScreen(screen) {
+        activeScreen = screen;
+        document.querySelector(".shell").classList.toggle("is-home", screen === "home");
+        document.querySelector("#homeScreen").hidden = screen !== "home";
+        document.querySelector("#inputScreen").hidden = screen !== "input";
+        document.querySelector("#resultsScreen").hidden = screen !== "view";
+        document.querySelectorAll(".bottom-item").forEach((item) => {
+          item.classList.toggle("active", screen === "home" ? item.dataset.openScreen === "home" :
+            screen === "view" && item.dataset.openTab === activeTab);
+        });
+        updateFolderManageControls();
+        window.scrollTo({ top: 0, behavior: "instant" });
+        if (screen === "home") void loadHomePreview();
+      }
+
+      function renderHome() {
+        const previewAnalysis = result || homePreviewAnalysis;
+        const mine = [...manualTodos.filter((todo) => !todo.completed).map(manualTodoAsTask),
+          ...(previewAnalysis?.my_tasks || []).filter((task) => task.personal !== false && !task.completed)];
+        const pending = (previewAnalysis?.all_tasks || []).filter(taskNeedsMyReview);
+        const previewTasks = [...mine.map((task) => ({ task, pending: false })), ...pending.map((task) => ({ task, pending: true }))].slice(0, 3);
+        document.querySelector("#homeTasks").innerHTML = previewTasks.length ? previewTasks.map(({ task, pending: needsReview }) =>
+          `<div class="home-preview-row"><svg class="icon"><use href="${needsReview ? "#icon-circle" : "#icon-check-square"}" /></svg><span>${escapeHtml(task.task)}</span><small>${needsReview ? "待确认" : hasSpecificDeadline(task.deadline) ? escapeHtml(task.deadline) : ""}</small></div>`,
+        ).join("") : '<div class="home-preview-empty">生成任务后，这里会显示与你有关的待办。</div>';
+        document.querySelector("#homeRecent").innerHTML = recentRecords.length ? recentRecords.slice(0, 2).map((record) =>
+          `<button class="home-preview-row home-preview-row--record" type="button" data-recent-id="${escapeHtml(record.id)}"><svg class="icon"><use href="#icon-play" /></svg><span><strong>${escapeHtml(record.meeting_title)}</strong><small>${escapeHtml(new Date(record.updated_at).toLocaleString("zh-CN"))}</small></span><svg class="icon link-chevron"><use href="#icon-chevron-right" /></svg></button>`,
+        ).join("") : '<div class="home-preview-empty">录音与文字记录保存后会出现在这里。</div>';
+        document.querySelector(".account-avatar").textContent = currentUser().slice(0, 2) || "我的";
+        document.querySelector(".account-avatar").setAttribute("aria-label", `个人设置：${currentUser() || "未设置"}`);
+      }
+
+      async function loadHomePreview() {
+        renderHome();
+        const user = currentUser();
+        if (!user) return;
+        try {
+          const response = await fetch(`/api/meetings/history?current_user=${encodeURIComponent(user)}`);
+          if (response.ok) {
+            const records = await response.json();
+            if (currentUser() !== user) return;
+            recentRecords = records;
+            if (!result && records.length) {
+              const latest = await fetch(`/api/meetings/history/${records[0].id}?current_user=${encodeURIComponent(user)}`);
+              if (latest.ok && currentUser() === user && !result) {
+                const record = await latest.json();
+                if (currentUser() !== user || result) return;
+                homePreviewAnalysis = record.analysis;
+              }
+            }
+          }
+        } catch { /* Home remains usable offline. */ }
+        renderHome();
       }
 
       function currentUser() {
@@ -1462,6 +1899,10 @@
         return String(value || "").split(/[、，,\n]/).map((item) => item.trim()).filter(Boolean);
       }
 
+      function validImageKeywords(keywords) {
+        return keywords.length <= 8 && keywords.every((item) => item.length <= 40);
+      }
+
       function renderFolderSelect() {
         const folder = selectedFolder();
         folderSelect.disabled = folders.length === 0;
@@ -1469,6 +1910,7 @@
         folderSelect.innerHTML = folders.map((item) =>
           `<option value="${item.id}" ${item.id === selectedFolderId ? "selected" : ""}>${escapeHtml(item.name)}${item.is_default ? "（默认）" : ""}</option>`,
         ).join("");
+        updateSettingsSummary();
         if (!folder) {
           folderHint.textContent = "不选择时将自动归档到默认文件夹。";
           return;
@@ -1487,26 +1929,77 @@
           folders = [];
           selectedFolderId = "";
           renderFolderSelect();
+          scheduleFolderImageRefresh();
           return;
         }
         const response = await fetch(`/api/meetings/folders?current_user=${encodeURIComponent(user)}`);
         if (!response.ok) throw new Error("文件夹加载失败");
+        if (currentUser() !== user) return;
         folders = await response.json();
         const available = new Set(folders.map((folder) => folder.id));
         selectedFolderId = available.has(preferredFolderId) ? preferredFolderId : (available.has(selectedFolderId) ? selectedFolderId : (folders[0]?.id || ""));
         renderFolderSelect();
+        scheduleFolderImageRefresh();
       }
 
-      async function createFolder({ name, keywords = [], aliases = [] }) {
+      function scheduleFolderImageRefresh() {
+        if (!folders.some((folder) => folder.image_status === "pending")) {
+          clearTimeout(folderImageTimer);
+          folderImageTimer = null;
+          folderImagePollAttempts = 0;
+          return;
+        }
+        if (folderImageTimer || folderImagePollAttempts >= 30) return;
+        folderImageTimer = setTimeout(async () => {
+          folderImageTimer = null;
+          folderImagePollAttempts += 1;
+          try {
+            await loadFolders();
+            if (activeTab === "library" && libraryView === "folders") render();
+          } catch {
+            scheduleFolderImageRefresh();
+          }
+        }, 4000);
+      }
+
+      async function createFolder({ name, keywords = [], aliases = [], imageKeywords = [] }) {
         const response = await fetch("/api/meetings/folders", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ current_user: currentUser(), name, keywords, aliases }),
+          body: JSON.stringify({ current_user: currentUser(), name, keywords, aliases, image_keywords: imageKeywords }),
         });
         if (!response.ok) throw new Error("文件夹创建失败");
         const folder = await response.json();
         await loadFolders(folder.id);
         return folder;
+      }
+
+      function openFolderImageDialog(folderId) {
+        const folder = folders.find((item) => item.id === folderId);
+        if (!folder || folder.is_default || folder.image_status === "pending") return;
+        editingFolderImageId = folderId;
+        document.querySelector("#folderImageName").textContent = folder.name;
+        document.querySelector("#folderImagePromptKeywords").value = (folder.image_keywords || []).join("、");
+        document.querySelector("#folderImageError").textContent = "";
+        folderImageDialog.showModal();
+        document.querySelector("#folderImagePromptKeywords").focus();
+      }
+
+      async function retryFolderImage(folderId, imageKeywords) {
+        const response = await fetch(`/api/meetings/folders/${encodeURIComponent(folderId)}/image`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ current_user: currentUser(), image_keywords: imageKeywords }),
+        });
+        if (!response.ok) throw new Error("图标生成暂不可用，请检查图片 API 配置。");
+        const folder = folders.find((item) => item.id === folderId);
+        if (folder) {
+          folder.image_status = "pending";
+          folder.image_keywords = imageKeywords;
+        }
+        libraryNotice = "正在生成专属图标，完成后会自动显示。";
+        scheduleFolderImageRefresh();
+        render();
       }
 
       async function updateFolder(folderId, keywords, aliases) {
@@ -1531,26 +2024,65 @@
         return decision === "delete";
       }
 
-      async function removeFolder(folderId) {
+      function toggleManagedFolder(folderId, selected = !managedFolderIds.has(folderId)) {
+        if (!folders.some((folder) => folder.id === folderId)) return;
+        if (selected) managedFolderIds.add(folderId);
+        else managedFolderIds.delete(folderId);
+        render();
+      }
+
+      function openFolderEditor(folderId) {
         const folder = folders.find((item) => item.id === folderId);
-        if (!folder || folder.is_default) return;
-        const count = folder.meeting_count || 0;
-        if (!await confirmDelete(`删除「${folder.name}」？`, `文件夹中的 ${count} 条记录会移到默认文件夹，关键词和称呼设置将删除。`)) return;
+        if (!folder) return;
+        editingFolderId = folder.id;
+        document.querySelector("#folderEditName").textContent = folder.name;
+        document.querySelector("#editFolderKeywords").value = (folder.keywords || []).join("、");
+        document.querySelector("#editFolderAliases").value = (folder.aliases || []).join("、");
+        document.querySelector("#folderEditError").textContent = "";
+        folderEditDialog.showModal();
+      }
+
+      async function copyManagedFolders() {
+        const selected = folders.filter((folder) => managedFolderIds.has(folder.id));
+        if (!selected.length) return;
+        const text = selected.map((folder) => [folder.name,
+          `称呼：${folder.aliases?.join("、") || "未设置"}`,
+          `场景关键词：${folder.keywords?.join("、") || "未设置"}`,
+          `图标关键词：${folder.image_keywords?.join("、") || "未设置"}`].join("\n")).join("\n\n");
         try {
-          const response = await fetch(`/api/meetings/folders/${encodeURIComponent(folderId)}?current_user=${encodeURIComponent(currentUser())}`, { method: "DELETE" });
-          if (!response.ok) throw new Error("删除文件夹失败");
-          const { moved_count } = await response.json();
-          if (selectedFolderId === folderId) {
-            selectedFolderId = folders.find((item) => item.is_default)?.id || "";
-            folderSelectionExplicit = false;
-          }
-          profile = null;
-          libraryNotice = `文件夹已删除，${moved_count} 条记录已移到默认文件夹。`;
-          await loadLibrary();
+          await navigator.clipboard.writeText(text);
+          libraryNotice = `已复制 ${selected.length} 个文件夹的信息。`;
         } catch {
-          libraryNotice = "删除文件夹失败，请稍后重试。";
-          render();
+          libraryNotice = "复制失败，请检查浏览器剪贴板权限。";
         }
+        render();
+      }
+
+      async function removeManagedFolders() {
+        const selected = folders.filter((folder) => managedFolderIds.has(folder.id));
+        if (!selected.length || selected.some((folder) => folder.is_default)) return;
+        const count = selected.reduce((total, folder) => total + (folder.meeting_count || 0), 0);
+        if (!await confirmDelete(`删除选中的 ${selected.length} 个文件夹？`, `其中 ${count} 条记录会移到默认文件夹，关键词和称呼设置将删除。`)) return;
+        let deleted = 0;
+        let moved = 0;
+        try {
+          for (const folder of selected) {
+            const response = await fetch(`/api/meetings/folders/${encodeURIComponent(folder.id)}?current_user=${encodeURIComponent(currentUser())}`, { method: "DELETE" });
+            if (!response.ok) throw new Error("删除文件夹失败");
+            moved += (await response.json()).moved_count || 0;
+            deleted += 1;
+            if (selectedFolderId === folder.id) {
+              selectedFolderId = folders.find((item) => item.is_default)?.id || "";
+              folderSelectionExplicit = false;
+            }
+          }
+        } catch {
+          libraryNotice = `已删除 ${deleted} 个文件夹，其余删除失败，请稍后重试。`;
+        }
+        if (deleted === selected.length) libraryNotice = `已删除 ${deleted} 个文件夹，${moved} 条记录已移到默认文件夹。`;
+        managedFolderIds.clear();
+        folderManageMode = false;
+        await loadLibrary();
       }
 
       async function removeRecord(meetingId) {
@@ -1564,9 +2096,8 @@
             currentMeetingId = "";
             result = null;
             saveBtn.disabled = true;
-            saveBtn.textContent = "保存到录音库";
+            saveBtn.textContent = "保存到文件夹";
           }
-          profile = null;
           libraryNotice = "记录已删除。";
           await loadLibrary();
         } catch {
@@ -1652,12 +2183,19 @@
           const record = await response.json();
           currentMeetingId = record.id;
           saveBtn.disabled = false;
-          saveBtn.textContent = "已保存到录音库";
-          if (!silent) generationStatus.textContent = "已保存到本机录音库；后续人工判断会用于个性化分析。";
+          saveBtn.textContent = "已保存";
+          if (!silent) {
+            generationStatus.textContent = "已保存到文件夹；后续人工判断会用于个性化分析。";
+            resultStatus.textContent = "已保存到文件夹。";
+          }
+          void loadHomePreview();
         } catch (error) {
-          if (!silent) generationStatus.textContent = "保存失败，请稍后重试。";
+          if (!silent) {
+            generationStatus.textContent = "保存失败，请稍后重试。";
+            resultStatus.textContent = generationStatus.textContent;
+          }
           saveBtn.disabled = false;
-          saveBtn.textContent = "保存到录音库";
+          saveBtn.textContent = "保存到文件夹";
         }
       }
 
@@ -1669,7 +2207,7 @@
         const user = currentUser();
         if (!user) {
           libraryRecords = [];
-          libraryMessage = "先填写当前用户，才能查看这台电脑上的个人录音库。";
+          libraryMessage = "请先在首页设置身份，才能查看这台电脑上的记录。";
           render();
           return;
         }
@@ -1677,7 +2215,8 @@
         render();
         try {
           await loadFolders();
-          const response = await fetch(`/api/meetings/history?current_user=${encodeURIComponent(user)}&folder_id=${encodeURIComponent(selectedFolderId)}`);
+          const folderFilter = libraryScope === "folder" ? `&folder_id=${encodeURIComponent(libraryFolderId)}` : "";
+          const response = await fetch(`/api/meetings/history?current_user=${encodeURIComponent(user)}${folderFilter}`);
           if (!response.ok) throw new Error("读取失败");
           libraryRecords = await response.json();
           libraryMessage = "";
@@ -1687,29 +2226,10 @@
         render();
       }
 
-      async function loadProfile() {
-        const user = currentUser();
-        if (!user) {
-          profile = null;
-          render();
-          return;
-        }
-        profile = null;
-        render();
-        try {
-          const response = await fetch(`/api/meetings/profile?current_user=${encodeURIComponent(user)}&folder_id=${encodeURIComponent(selectedFolderId)}`);
-          if (!response.ok) throw new Error("读取失败");
-          profile = await response.json();
-        } catch (error) {
-          profile = { error: true };
-        }
-        render();
-      }
-
       function renderLibrary() {
         if (libraryMessage) return `<div class="empty">${escapeHtml(libraryMessage)}</div>`;
         if (!libraryRecords.length) {
-          return '<div class="empty">还没有保存的记录。生成任务清单后，点击“保存到录音库”。</div>';
+          return '<div class="empty">还没有保存的记录。生成任务清单后，点击“保存到文件夹”。</div>';
         }
         const query = compactText(libraryQuery);
         const records = libraryRecords.filter((record) => {
@@ -1723,21 +2243,14 @@
           <div class="library-list">
             ${records.map((record) => `
               <article class="library-item">
-                <div class="library-item-main">
-                  <span class="library-type">${record.audio_name ? "音" : "文"}</span>
+                <button class="library-item-main" type="button" data-library-action="open" data-meeting-id="${escapeHtml(record.id)}" aria-label="打开${escapeHtml(record.meeting_title)}">
+                  <span class="library-type"><svg class="icon"><use href="${record.audio_name ? "#icon-audio-lines" : "#icon-file-text"}" /></svg></span>
                   <div class="library-item-copy">
                     <h3>${escapeHtml(record.meeting_title)}</h3>
-                    <p class="panel-note">${escapeHtml(new Date(record.updated_at).toLocaleString("zh-CN"))}${record.audio_name ? ` · ${escapeHtml(record.audio_name)}` : " · 文字转写"}</p>
-                    <div class="library-stats">
-                      <span class="library-stat">${record.task_count} 项任务</span>
-                      <span class="library-stat">${record.my_task_count} 项与我有关</span>
-                      ${record.confirmed_task_count ? `<span class="library-stat">${record.confirmed_task_count} 项已确认</span>` : ""}
-                    </div>
                   </div>
-                </div>
+                </button>
                 <div class="library-item-actions">
-                  <button class="btn" type="button" data-library-action="open" data-meeting-id="${escapeHtml(record.id)}">打开</button>
-                  <button class="btn" type="button" data-library-action="delete-record" data-meeting-id="${escapeHtml(record.id)}" aria-label="删除${escapeHtml(record.meeting_title)}">删除</button>
+                  <button class="btn" type="button" data-library-action="delete-record" data-meeting-id="${escapeHtml(record.id)}" aria-label="删除${escapeHtml(record.meeting_title)}" title="删除记录"><svg class="icon"><use href="#icon-trash" /></svg></button>
                 </div>
               </article>
             `).join("")}
@@ -1745,45 +2258,49 @@
         `;
       }
 
+      function folderSceneImage(folder) {
+        if (folder.is_default) return "general";
+        const scene = `${folder.name} ${(folder.keywords || []).join(" ")}`.toLowerCase();
+        const categories = [
+          [/(家庭|家人|亲子|父母|孩子|生活|home|family)/, "family"],
+          [/(客户|商务|销售|合作|报价|client|business)/, "client"],
+          [/(办公|工作|同事|团队|项目|会议|office|work)/, "office"],
+          [/(学习|课程|考试|学校|读书|study|school)/, "study"],
+          [/(旅行|出行|旅游|度假|trip|travel)/, "travel"],
+          [/(朋友|聚会|社交|friend)/, "friends"],
+        ];
+        return categories.find(([pattern]) => pattern.test(scene))?.[1] || "general";
+      }
+
       function renderFolderGrid() {
         if (!folders.length) return "";
         return `<div class="folder-grid">${folders.map((folder) => `
-          <div class="folder-card ${folder.id === selectedFolderId ? "active" : ""}">
-            <button class="folder-card-main" type="button" data-library-action="folder" data-folder-id="${escapeHtml(folder.id)}">
+          <div class="folder-card ${folderManageMode && managedFolderIds.has(folder.id) ? "is-selected" : !folderManageMode && folder.id === libraryFolderId ? "active" : ""}">
+            ${folderManageMode ? `<input class="manage-check" type="checkbox" data-manage-folder="${escapeHtml(folder.id)}" aria-label="选择${escapeHtml(folder.name)}" ${managedFolderIds.has(folder.id) ? "checked" : ""} />` : ""}
+            <button class="folder-card-main" type="button" data-library-action="${folderManageMode ? "select-folder" : "folder"}" data-folder-id="${escapeHtml(folder.id)}" ${folderManageMode ? `aria-pressed="${managedFolderIds.has(folder.id)}"` : ""}>
+              <div class="folder-card-art"><img src="${folder.image_available ? `/api/meetings/folders/${encodeURIComponent(folder.id)}/image?current_user=${encodeURIComponent(currentUser())}` : `/static/images/scenes/${folderSceneImage(folder)}.webp`}" data-fallback="/static/images/scenes/${folderSceneImage(folder)}.webp" alt="" loading="lazy" /></div>
               <div class="folder-card-top"><strong>${escapeHtml(folder.name)}</strong><span>${folder.meeting_count || 0} 条</span></div>
               <small>${folder.aliases?.length ? `称呼：${escapeHtml(folder.aliases.join("、"))}` : "使用账号默认称呼"}</small>
               <small>${folder.keywords?.length ? escapeHtml(folder.keywords.join("、")) : "未分类记录"}</small>
+              ${folder.image_status === "pending" ? "<small>正在生成专属图标…</small>" : ""}
             </button>
-            <button class="folder-card-edit" type="button" data-library-action="edit-folder" data-folder-id="${escapeHtml(folder.id)}" aria-label="编辑${escapeHtml(folder.name)}的关键词和称呼">编辑</button>
-            ${folder.is_default ? "" : `<button class="folder-card-delete" type="button" data-library-action="delete-folder" data-folder-id="${escapeHtml(folder.id)}" aria-label="删除${escapeHtml(folder.name)}文件夹">删除</button>`}
           </div>
         `).join("")}</div>`;
       }
 
-      function profileItems(items, emptyText) {
-        if (!items?.length) return `<p class="panel-note">${emptyText}</p>`;
-        return `<div class="profile-list">${items.map((item) => `<div class="plain-card">${escapeHtml(item)}</div>`).join("")}</div>`;
-      }
-
-      function renderProfile() {
-        if (!currentUser()) return '<div class="empty">先填写当前用户，再查看个人工作画像。</div>';
-        if (!profile) return '<div class="empty">正在整理你在本机留下的人工反馈...</div>';
-        if (profile.error) return '<div class="empty">暂时无法读取个人画像。</div>';
-        return `
-          <div class="hero-metric">
-            <div class="metric"><strong>${profile.saved_meeting_count}</strong><span>已保存记录</span></div>
-            <div class="metric"><strong>${profile.confirmed_tasks.length}</strong><span>确认过的任务类型</span></div>
-            <div class="metric"><strong>${profile.excluded_tasks.length}</strong><span>排除过的任务类型</span></div>
+      function renderFolderManageToolbar() {
+        if (!folderManageMode) return "";
+        const selected = folders.filter((folder) => managedFolderIds.has(folder.id));
+        const single = selected.length === 1;
+        return `<div class="manage-toolbar" role="toolbar" aria-label="管理所选文件夹">
+          <strong>已选 ${selected.length} 个</strong>
+          <div class="manage-actions">
+            <button class="btn" type="button" data-folder-manage-action="copy" ${selected.length ? "" : "disabled"}>复制信息</button>
+            <button class="btn" type="button" data-folder-manage-action="edit" ${single ? "" : "disabled"}>编辑</button>
+            <button class="btn" type="button" data-folder-manage-action="image" ${single && !selected[0].is_default && selected[0].image_status !== "pending" ? "" : "disabled"}>图标</button>
+            <button class="btn btn-danger" type="button" data-folder-manage-action="delete" ${selected.length && selected.every((folder) => !folder.is_default) ? "" : "disabled"}>删除</button>
           </div>
-          <h2 class="panel-title">${escapeHtml(currentUser())}的个人工作画像</h2>
-          <p class="task-triage-note">只使用你在本机主动确认、排除或修改过的任务，帮助模型判断后续记录里的模糊候选项；原文中的明确负责人永远优先。</p>
-          <h3>通常归入我的任务</h3>
-          ${profileItems(profile.confirmed_tasks, "还没有足够的人工确认记录。")}
-          <h3 style="margin-top: 22px">通常不是我的任务</h3>
-          ${profileItems(profile.excluded_tasks, "还没有排除记录。")}
-          <h3 style="margin-top: 22px">近期协作者</h3>
-          ${profileItems(profile.collaborators, "保存并确认共同任务后会显示在这里。")}
-        `;
+        </div>`;
       }
 
       function compactText(value) {
@@ -1987,20 +2504,18 @@
       }
 
       function render() {
+        renderHome();
+        updateFolderManageControls();
+        document.querySelector("#resultActions").hidden = activeTab !== "task-list" || !result;
         if (activeTab === "library") {
-          const myTaskCount = libraryRecords.reduce((total, record) => total + (record.my_task_count || 0), 0);
-          const confirmedCount = libraryRecords.reduce((total, record) => total + (record.confirmed_task_count || 0), 0);
+          if (libraryView === "folders") {
+            content.innerHTML = `<h2 class="panel-title">文件夹</h2><p class="panel-note">${folderManageMode ? "选择文件夹后执行管理操作。" : "按场景整理录音。点击文件夹查看其中的记录。"}</p>${libraryNotice ? `<p class="panel-note" role="status">${escapeHtml(libraryNotice)}</p>` : ""}${renderFolderGrid()}${renderFolderManageToolbar()}`;
+            return;
+          }
           content.innerHTML = `
-            <div class="hero-metric">
-              <div class="metric"><strong>${libraryRecords.length}</strong><span>已保存记录</span></div>
-              <div class="metric"><strong>${myTaskCount}</strong><span>与我有关的任务</span></div>
-              <div class="metric"><strong>${confirmedCount}</strong><span>已确认任务</span></div>
-            </div>
-            <h2 class="panel-title">录音库</h2>
-            <p class="panel-note">按场景查看并沉淀个人偏好。点击文件夹可直接进入该场景；未指定归档的记录会进入默认文件夹。</p>
+            <h2 class="panel-title">${libraryScope === "folder" ? escapeHtml(folders.find((folder) => folder.id === libraryFolderId)?.name || "记录") : "全部记录"} <span class="todo-count">${libraryRecords.length}</span></h2>
             ${libraryNotice ? `<p class="panel-note" role="status">${escapeHtml(libraryNotice)}</p>` : ""}
-            ${renderFolderGrid()}
-            <h3>${escapeHtml(selectedFolder()?.name || "默认文件夹")}</h3>
+            <div class="library-context"><button class="btn" type="button" data-library-action="show-folders">文件夹</button><span>${libraryScope === "folder" ? "当前场景" : "按最近更新排序"}</span></div>
             <div class="library-toolbar">
               <input class="input" id="libraryQuery" value="${escapeHtml(libraryQuery)}" placeholder="搜索记录标题或录音文件名" />
               <button class="btn" type="button" data-library-action="search">搜索</button>
@@ -2009,19 +2524,15 @@
           `;
           return;
         }
-        if (activeTab === "profile") {
-          content.innerHTML = renderProfile();
-          return;
-        }
         if (activeTab === "focus") {
           content.innerHTML = renderFocusWorkspace();
           return;
         }
-        if (!result) {
+        if (!result && activeTab !== "task-list") {
           content.innerHTML = '<div class="empty">上传录音或直接点击生成，查看 Demo 结果。</div>';
           return;
         }
-        if (Array.isArray(result.all_tasks)) {
+        if (Array.isArray(result?.all_tasks)) {
           result.my_tasks = result.all_tasks.filter(taskBelongsToMe);
         }
 
@@ -2097,21 +2608,21 @@
         }
 
         function todoList(tasks, isMine) {
-          if (!tasks.length) return `<p class="todo-empty">${isMine ? "暂无已确认的我的任务" : "暂无需要确认的任务"}</p>`;
+          if (!tasks.length) return `<p class="todo-empty">${isMine ? "暂无任务，点击右上角 + 添加待办。" : "暂无需要确认的任务"}</p>`;
           return `<ul class="todo-list">${tasks.map((task) => {
             const key = taskKey(task);
             const open = expandedTaskKey === key;
             const isEditing = editingTodoKey === key;
             const hasDeadline = hasSpecificDeadline(task.deadline);
-            return `<li class="todo-item">
+            return `<li class="todo-item ${task.completed ? "todo-item--done" : ""}">
+              ${isMine ? `<input class="todo-check" type="checkbox" data-todo-complete="${escapeHtml(key)}" aria-label="${task.completed ? "标记未完成" : "标记完成"}：${escapeHtml(task.task)}" ${task.completed ? "checked" : ""} />` : ""}
               <button class="todo-toggle" type="button" data-task-expand="${escapeHtml(key)}" aria-expanded="${open}" aria-label="${escapeHtml(task.task)}，${open ? "收起" : "展开"}来源片段">
-                <span class="todo-bullet" aria-hidden="true">•</span>
+                ${isMine ? "" : '<span class="todo-bullet" aria-hidden="true">•</span>'}
                 <span class="todo-main"><span class="todo-title">${escapeHtml(task.task)}</span>${hasDeadline ? `<span class="todo-deadline">ddl：${escapeHtml(task.deadline)}</span>` : ""}</span>
                 <span class="todo-chevron" aria-hidden="true">⌄</span>
               </button>
               ${open ? `<div class="todo-detail">
-                ${isMine ? "" : `<p>负责人：${task.personal === true ? "我（已确认）" : escapeHtml(task.assignee)}</p>`}
-                <p class="todo-evidence"><strong>来源片段｜${escapeHtml(task.source)}</strong><br>${escapeHtml(task.evidence)}</p>
+                ${task.manual ? '<p class="todo-manual-note">手动添加</p>' : `${isMine ? "" : `<p>负责人：${task.personal === true ? "我（已确认）" : escapeHtml(task.assignee)}</p>`}<p class="todo-evidence"><strong>来源片段｜${escapeHtml(task.source)}</strong><br>${escapeHtml(task.evidence)}</p>`}
                 ${isEditing ? `<div class="todo-edit">
                   <label>任务<input class="input" data-todo-field="title" value="${escapeHtml(task.task)}" required /></label>
                   <label>截止时间<input class="input" data-todo-field="deadline" value="${hasDeadline ? escapeHtml(task.deadline) : ""}" placeholder="例如：周五 18:00" /></label>
@@ -2119,7 +2630,7 @@
                 <div class="todo-actions">
                   ${isEditing
                     ? `<button class="btn btn-primary" type="button" data-task-action="save-todo" data-task-key="${escapeHtml(key)}">保存</button><button class="btn" type="button" data-task-action="cancel-todo" data-task-key="${escapeHtml(key)}">取消</button>`
-                    : `${!isMine && task.personal !== true ? `<button class="btn btn-claim" type="button" data-task-action="claim" data-task-key="${escapeHtml(key)}">确认是我的任务</button>` : ""}${!isMine ? `<button class="btn" type="button" data-task-action="edit-todo" data-task-key="${escapeHtml(key)}">${hasDeadline ? "修改任务" : "补充时间或修改任务"}</button>` : ""}`}
+                    : `${!isMine && task.personal !== true ? `<button class="btn btn-claim" type="button" data-task-action="claim" data-task-key="${escapeHtml(key)}">确认是我的任务</button>` : ""}<button class="btn" type="button" data-task-action="edit-todo" data-task-key="${escapeHtml(key)}">${hasDeadline ? "修改任务" : "补充时间或修改任务"}</button>${task.manual ? `<button class="btn" type="button" data-task-action="delete-todo" data-task-key="${escapeHtml(key)}">删除</button>` : ""}`}
                 </div>
               </div>` : ""}
             </li>`;
@@ -2145,10 +2656,12 @@
         }
 
         if (activeTab === "task-list") {
-          const allTasks = result.all_tasks || result.my_tasks;
+          const allTasks = result?.all_tasks || result?.my_tasks || [];
           const reviewTasks = allTasks.filter(taskNeedsMyReview);
+          const mine = [...manualTodos.map(manualTodoAsTask), ...(result?.my_tasks || [])];
           content.innerHTML = `
-            <section class="todo-section"><h3 class="todo-heading">我的任务清单 <span class="todo-count">${result.my_tasks.length}</span></h3>${todoList(result.my_tasks, true)}</section>
+            ${todoNotice ? `<p class="panel-note" role="status">${escapeHtml(todoNotice)}</p>` : ""}
+            <section class="todo-section"><h3 class="todo-heading">我的任务清单 <span class="todo-count">${mine.length}</span></h3>${todoList(mine, true)}</section>
             <section class="todo-section"><h3 class="todo-heading">模糊任务清单 <span class="todo-count">${reviewTasks.length}</span></h3>${todoList(reviewTasks, false)}</section>
           `;
           return;
@@ -2194,9 +2707,19 @@
           const response = await fetch(`/static/samples/${sample.file}?v=self-labeled`);
           if (!response.ok) throw new Error("测试转写加载失败");
           document.querySelector("#transcript").value = await response.text();
+          setInputMode("text");
+          result = null;
+          focusResult = null;
+          focusTrace = null;
+          focusMessage = "";
+          currentMeetingId = "";
+          saveBtn.disabled = true;
+          resultStatus.textContent = "";
+          render();
           updateSpeakerOptions();
           const previousUser = currentUser();
           document.querySelector("#user").value = sample.user;
+          updateSettingsSummary();
           if (previousUser !== sample.user) {
             selectedFolderId = "";
             folderSelectionExplicit = false;
@@ -2210,7 +2733,7 @@
             source: "recording_bean",
           })));
           renderMarkers();
-          document.querySelector("#user").focus();
+          transcriptInput.focus();
           generationStatus.textContent = `已加载「${sample.title}」。测试样本已标注本人为「${sample.user}」，其他说话人保持匿名。`;
         } catch {
           generationStatus.textContent = "测试转写加载失败，请稍后重试。";
@@ -2239,13 +2762,25 @@
       });
 
       analyzeBtn.addEventListener("click", async () => {
+        const analysisUser = currentUser();
+        if (!analysisUser) {
+          generationStatus.textContent = "请返回首页，在左上角设置使用身份。";
+          return;
+        }
+        if (inputMode === "audio" && !audioInput.files[0]) {
+          generationStatus.textContent = "请先选择录音文件。";
+          return;
+        }
+        if (inputMode === "text" && !transcriptInput.value.trim()) {
+          generationStatus.textContent = "请先粘贴转写内容，或加载测试转写。";
+          return;
+        }
         analysisController = new AbortController();
         analyzeBtn.disabled = true;
         analyzeBtn.textContent = "分析中...";
-        pauseBtn.disabled = false;
+        pauseBtn.hidden = false;
         generationStatus.textContent = "正在生成，可暂停后修改输入。";
 
-        const analysisUser = document.querySelector("#user").value.trim();
         if (analysisUser && !selectedFolderId) {
           try {
             await loadFolders();
@@ -2254,10 +2789,11 @@
           }
         }
 
+        const submittedMode = inputMode;
         const formData = new FormData();
-        const audio = document.querySelector("#audio").files[0];
+        const audio = submittedMode === "audio" ? audioInput.files[0] : null;
         if (audio) formData.append("audio", audio);
-        formData.append("transcript", document.querySelector("#transcript").value);
+        formData.append("transcript", submittedMode === "text" ? transcriptInput.value : "");
         formData.append("current_user", analysisUser);
         formData.append("confirmed_speaker", confirmedSpeaker.value);
         formData.append("markers", JSON.stringify(markers));
@@ -2271,13 +2807,18 @@
           });
           if (!response.ok) throw new Error("内容分析失败");
           result = await response.json();
+          focusResult = null;
+          focusTrace = null;
+          focusMessage = "";
           resultUser = analysisUser;
           currentMeetingId = "";
+          if (submittedMode === "audio") transcriptInput.value = (result.transcript || []).join("\n");
           saveBtn.disabled = false;
-          saveBtn.textContent = "保存到录音库";
+          saveBtn.textContent = "保存到文件夹";
           activateTab("task-list");
           render();
           generationStatus.textContent = result.identity_confirmed ? "已按确认的说话人生成任务。" : "未确认本人说话人；请到任务清单认领候选任务。";
+          resultStatus.textContent = generationStatus.textContent;
         } catch (error) {
           if (error.name === "AbortError") {
             generationStatus.textContent = "已暂停生成。修改输入后可重新生成。";
@@ -2287,7 +2828,7 @@
         } finally {
           analyzeBtn.disabled = false;
           analyzeBtn.textContent = "生成任务清单";
-          pauseBtn.disabled = true;
+          pauseBtn.hidden = true;
           analysisController = null;
         }
       });
@@ -2310,19 +2851,34 @@
       audioInput.addEventListener("change", () => {
         const file = audioInput.files[0];
         audioFileName.textContent = file ? file.name : "尚未选择录音文件";
+        if (file) setInputMode("audio");
       });
       transcriptInput.addEventListener("input", updateSpeakerOptions);
 
       document.querySelector("#user").addEventListener("change", () => {
+        try { localStorage.setItem("action-memo-current-user", currentUser()); } catch { /* Storage is optional. */ }
+        updateSettingsSummary();
         selectedFolderId = "";
         folderSelectionExplicit = false;
         confirmedSpeaker.value = "";
+        result = null;
+        focusResult = null;
+        focusTrace = null;
+        focusMessage = "";
+        currentMeetingId = "";
+        recentRecords = [];
+        homePreviewAnalysis = null;
+        manualTodos = [];
+        renderHome();
         void loadFolders();
+        void loadHomePreview();
+        void loadManualTodos();
       });
 
       newFolderBtn.addEventListener("click", () => {
         if (!currentUser()) return;
         folderForm.reset();
+        document.querySelector("#folderCreateError").textContent = "";
         folderDialog.showModal();
       });
 
@@ -2336,17 +2892,57 @@
         event.preventDefault();
         const name = document.querySelector("#folderName").value.trim();
         if (!name) return;
+        const imageKeywords = splitTags(document.querySelector("#folderImageKeywords").value);
+        if (!validImageKeywords(imageKeywords)) {
+          document.querySelector("#folderCreateError").textContent = "最多输入 8 个图标关键词，每个不超过 40 字。";
+          return;
+        }
+        document.querySelector("#folderCreateError").textContent = "";
+        const submitButton = folderForm.querySelector('[type="submit"]');
+        submitButton.disabled = true;
         createFolder({
           name,
           keywords: splitTags(document.querySelector("#folderKeywords").value),
           aliases: splitTags(document.querySelector("#folderAliases").value),
+          imageKeywords,
         }).then(() => {
           folderSelectionExplicit = true;
           folderDialog.close();
-          generationStatus.textContent = `已创建「${name}」，之后保存的记录会归入该场景。`;
+          generationStatus.textContent = `已创建「${name}」，专属图标正在后台生成。`;
         }).catch(() => {
-          generationStatus.textContent = "文件夹创建失败，请稍后重试。";
+          document.querySelector("#folderCreateError").textContent = "文件夹创建失败，请稍后重试。";
+        }).finally(() => {
+          submitButton.disabled = false;
         });
+      });
+
+      folderImageDialog.addEventListener("click", (event) => {
+        if (event.target === folderImageDialog || event.target.closest('[data-folder-image-action="close"]')) {
+          folderImageDialog.close();
+        }
+      });
+
+      folderImageForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (!editingFolderImageId) return;
+        const imageKeywords = splitTags(document.querySelector("#folderImagePromptKeywords").value);
+        const error = document.querySelector("#folderImageError");
+        if (!validImageKeywords(imageKeywords)) {
+          error.textContent = "最多输入 8 个关键词，每个不超过 40 字。";
+          return;
+        }
+        const submitButton = folderImageForm.querySelector('[type="submit"]');
+        submitButton.disabled = true;
+        error.textContent = "";
+        try {
+          await retryFolderImage(editingFolderImageId, imageKeywords);
+          folderImageDialog.close();
+          editingFolderImageId = "";
+        } catch {
+          error.textContent = "图标生成暂不可用，请检查图片 API 配置后重试。";
+        } finally {
+          submitButton.disabled = false;
+        }
       });
 
       folderEditDialog.addEventListener("click", (event) => {
@@ -2379,41 +2975,167 @@
         activateTab("focus");
         content.querySelector("#focusQuery")?.focus();
       });
+      recordBtn.addEventListener("click", () => activateTab("record"));
+
+      document.querySelectorAll("[data-open-screen]").forEach((button) => {
+        button.addEventListener("click", () => openScreen(button.dataset.openScreen));
+      });
+      document.querySelectorAll("[data-open-tab]").forEach((button) => {
+        button.addEventListener("click", () => {
+          if (button.dataset.openTab === "library") {
+            libraryView = button.dataset.libraryView || "folders";
+            libraryScope = "all";
+          }
+          activateTab(button.dataset.openTab);
+          if (button.dataset.openTab === "library") void loadLibrary();
+          if (button.dataset.openTab === "task-list") void loadManualTodos();
+        });
+      });
+
+      document.querySelector("#accountBtn").addEventListener("click", () => {
+        document.querySelector("#accountName").value = currentUser();
+        accountDialog.showModal();
+        document.querySelector("#accountName").focus();
+      });
+      accountForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const name = document.querySelector("#accountName").value.trim();
+        if (!name) return;
+        const userInput = document.querySelector("#user");
+        if (userInput.value !== name) {
+          userInput.value = name;
+          userInput.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+        accountDialog.close();
+      });
+      document.querySelectorAll("[data-close-dialog]").forEach((button) => {
+        button.addEventListener("click", () => document.querySelector(`#${button.dataset.closeDialog}`).close());
+      });
+      function openTodoDialog() {
+        if (!currentUser()) {
+          todoNotice = "请先在录音转写页填写账号。";
+          render();
+          return;
+        }
+        todoForm.reset();
+        document.querySelector("#todoFormError").textContent = "";
+        todoDialog.showModal();
+        document.querySelector("#todoTitle").focus();
+      }
+
+      document.querySelector("#screenActionBtn").addEventListener("click", () => {
+        if (activeTab === "task-list") openTodoDialog();
+        else openScreen("input");
+      });
+      manageBtn.addEventListener("click", () => {
+        if (activeScreen !== "view" || activeTab !== "library" || libraryView !== "folders") return;
+        folderManageMode = !folderManageMode;
+        managedFolderIds.clear();
+        render();
+      });
+      todoDialog.addEventListener("click", (event) => {
+        if (event.target === todoDialog) todoDialog.close();
+      });
+      todoForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const title = document.querySelector("#todoTitle").value.trim();
+        const deadline = document.querySelector("#todoDeadline").value.trim();
+        if (!title) return;
+        const submitButton = todoForm.querySelector('[type="submit"]');
+        submitButton.disabled = true;
+        try {
+          const response = await fetch("/api/meetings/todos", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ current_user: currentUser(), title, deadline }),
+          });
+          if (!response.ok) throw new Error("保存失败");
+          manualTodos.unshift(await response.json());
+          todoNotice = "";
+          todoDialog.close();
+          render();
+        } catch {
+          document.querySelector("#todoFormError").textContent = "添加失败，请稍后重试。";
+        } finally {
+          submitButton.disabled = false;
+        }
+      });
+
+      async function openSavedRecord(meetingId) {
+        try {
+          const response = await fetch(`/api/meetings/history/${meetingId}?current_user=${encodeURIComponent(currentUser())}`);
+          if (!response.ok) throw new Error("读取失败");
+          const record = await response.json();
+          result = record.analysis;
+          focusResult = null;
+          focusTrace = null;
+          focusMessage = "";
+          resultUser = record.current_user;
+          currentMeetingId = record.id;
+          selectedFolderId = record.folder_id || selectedFolderId;
+          folderSelectionExplicit = true;
+          document.querySelector("#user").value = record.current_user;
+          void loadFolders(selectedFolderId);
+          document.querySelector("#transcript").value = record.transcript;
+          setInputMode("text");
+          updateSpeakerOptions();
+          saveBtn.disabled = false;
+          saveBtn.textContent = "已保存";
+          resultStatus.textContent = "已打开保存的记录。";
+          activateTab("task-list");
+        } catch {
+          libraryMessage = "打开记录失败，请稍后重试。";
+          render();
+        }
+      }
+
+      document.querySelector("#homeRecent").addEventListener("click", (event) => {
+        const button = event.target.closest("[data-recent-id]");
+        if (button) void openSavedRecord(button.dataset.recentId);
+      });
 
       document.querySelectorAll(".tab").forEach((tab) => {
         tab.addEventListener("click", () => {
           activateTab(tab.dataset.tab);
           if (tab.dataset.tab === "library") void loadLibrary();
-          if (tab.dataset.tab === "profile") void loadProfile();
         });
       });
 
       content.addEventListener("click", (event) => {
+        if (event.target.closest("[data-todo-add]")) {
+          openTodoDialog();
+          return;
+        }
+        const manageAction = event.target.closest("[data-folder-manage-action]");
+        if (manageAction && folderManageMode) {
+          const selected = folders.filter((folder) => managedFolderIds.has(folder.id));
+          if (manageAction.dataset.folderManageAction === "copy") void copyManagedFolders();
+          if (manageAction.dataset.folderManageAction === "edit" && selected.length === 1) openFolderEditor(selected[0].id);
+          if (manageAction.dataset.folderManageAction === "image" && selected.length === 1 && !selected[0].is_default) openFolderImageDialog(selected[0].id);
+          if (manageAction.dataset.folderManageAction === "delete") void removeManagedFolders();
+          return;
+        }
         const libraryButton = event.target.closest("[data-library-action]");
-        if (libraryButton?.dataset.libraryAction === "delete-folder") {
-          void removeFolder(libraryButton.dataset.folderId);
+        if (libraryButton?.dataset.libraryAction === "select-folder") {
+          toggleManagedFolder(libraryButton.dataset.folderId);
           return;
         }
         if (libraryButton?.dataset.libraryAction === "delete-record") {
           void removeRecord(libraryButton.dataset.meetingId);
           return;
         }
-        if (libraryButton?.dataset.libraryAction === "edit-folder") {
-          const folder = folders.find((item) => item.id === libraryButton.dataset.folderId);
-          if (!folder) return;
-          editingFolderId = folder.id;
-          document.querySelector("#folderEditName").textContent = folder.name;
-          document.querySelector("#editFolderKeywords").value = (folder.keywords || []).join("、");
-          document.querySelector("#editFolderAliases").value = (folder.aliases || []).join("、");
-          document.querySelector("#folderEditError").textContent = "";
-          folderEditDialog.showModal();
+        if (libraryButton?.dataset.libraryAction === "folder") {
+          libraryFolderId = libraryButton.dataset.folderId;
+          libraryScope = "folder";
+          libraryView = "records";
+          document.querySelector("#screenTitle").textContent = "记录";
+          void loadLibrary();
           return;
         }
-        if (libraryButton?.dataset.libraryAction === "folder") {
-          selectedFolderId = libraryButton.dataset.folderId;
-          folderSelectionExplicit = true;
-          renderFolderSelect();
-          void loadLibrary();
+        if (libraryButton?.dataset.libraryAction === "show-folders") {
+          libraryView = "folders";
+          libraryScope = "all";
+          document.querySelector("#screenTitle").textContent = "文件夹";
+          render();
           return;
         }
         if (libraryButton?.dataset.libraryAction === "search") {
@@ -2422,31 +3144,7 @@
           return;
         }
         if (libraryButton?.dataset.libraryAction === "open") {
-          const user = currentUser();
-          const meetingId = libraryButton.dataset.meetingId;
-          fetch(`/api/meetings/history/${meetingId}?current_user=${encodeURIComponent(user)}`)
-            .then(async (response) => {
-              if (!response.ok) throw new Error("读取失败");
-              return response.json();
-            })
-            .then((record) => {
-              result = record.analysis;
-              resultUser = record.current_user;
-              currentMeetingId = record.id;
-              selectedFolderId = record.folder_id || selectedFolderId;
-              folderSelectionExplicit = true;
-              document.querySelector("#user").value = record.current_user;
-              void loadFolders(selectedFolderId);
-              document.querySelector("#transcript").value = record.transcript;
-              updateSpeakerOptions();
-              saveBtn.disabled = false;
-              saveBtn.textContent = "已保存到录音库";
-              activateTab("task-list");
-            })
-            .catch(() => {
-              libraryMessage = "打开记录失败，请稍后重试。";
-              render();
-            });
+          void openSavedRecord(libraryButton.dataset.meetingId);
           return;
         }
 
@@ -2590,7 +3288,39 @@
           }
           deadlineInput.setCustomValidity(deadline && !hasSpecificDeadline(deadline) ? "请输入具体日期或时间，例如周五 18:00" : "");
           if (!deadlineInput.reportValidity()) return;
+          if (key.startsWith("manual:")) {
+            const todo = manualTodos.find((item) => item.id === key.slice(7));
+            if (!todo) return;
+            void updateManualTodo(todo, { title, deadline }).then(() => {
+              editingTodoKey = "";
+              todoNotice = "";
+              render();
+            }).catch(() => {
+              todoNotice = "修改待办失败，请稍后重试。";
+              render();
+            });
+            return;
+          }
           updateTaskFields(key, { task: title, deadline: deadline || "待确认" });
+          return;
+        }
+
+        if (action === "delete-todo") {
+          const todo = manualTodos.find((item) => item.id === key.slice(7));
+          if (!todo) return;
+          void (async () => {
+            if (!await confirmDelete(`删除「${todo.title}」？`, "这条手动待办将从当前账号永久删除。")) return;
+            try {
+              const response = await fetch(`/api/meetings/todos/${encodeURIComponent(todo.id)}?current_user=${encodeURIComponent(currentUser())}`, { method: "DELETE" });
+              if (!response.ok) throw new Error("删除失败");
+              manualTodos = manualTodos.filter((item) => item.id !== todo.id);
+              expandedTaskKey = "";
+              todoNotice = "";
+            } catch {
+              todoNotice = "删除待办失败，请稍后重试。";
+            }
+            render();
+          })();
           return;
         }
 
@@ -2618,9 +3348,44 @@
         }
       });
 
+      content.addEventListener("error", (event) => {
+        const image = event.target;
+        if (image.matches?.(".folder-card-art img") && image.dataset.fallback) {
+          image.src = image.dataset.fallback;
+          delete image.dataset.fallback;
+        }
+      }, true);
+
+      content.addEventListener("change", (event) => {
+        const folderCheckbox = event.target.closest("[data-manage-folder]");
+        if (folderCheckbox) {
+          toggleManagedFolder(folderCheckbox.dataset.manageFolder, folderCheckbox.checked);
+          return;
+        }
+        const checkbox = event.target.closest("[data-todo-complete]");
+        if (!checkbox) return;
+        const key = checkbox.dataset.todoComplete;
+        if (!key.startsWith("manual:")) {
+          toggleGeneratedTask(key, checkbox.checked);
+          return;
+        }
+        const todo = manualTodos.find((item) => item.id === key.slice(7));
+        if (!todo) return;
+        checkbox.disabled = true;
+        void updateManualTodo(todo, { completed: checkbox.checked }).then(() => {
+          todoNotice = "";
+          render();
+        }).catch(() => {
+          todoNotice = "更新完成状态失败，请稍后重试。";
+          render();
+        });
+      });
+
       void loadFolders().catch(() => {
         generationStatus.textContent = "文件夹加载失败，请稍后重试。";
       });
+      void loadHomePreview();
+      void loadManualTodos();
     </script>
   </body>
 </html>

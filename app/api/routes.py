@@ -1,25 +1,34 @@
 import json
 import re
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 
-from app.models.history import FolderSuggestionPayload, MeetingHistoryPayload, RecordingFolderPayload, RecordingFolderUpdatePayload
+from app.core.config import settings
+from app.models.history import FolderSuggestionPayload, MeetingHistoryPayload, PersonalTodoPayload, RecordingFolderImagePayload, RecordingFolderPayload, RecordingFolderUpdatePayload
 from app.models.meeting import MeetingAnalysis, MeetingFocusAnalysis, MeetingMarker
 from app.services.personal_memory import (
     build_personal_profile,
+    create_personal_todo,
     create_folder,
+    delete_personal_todo,
     delete_folder,
     delete_meeting,
     get_folder,
     get_meeting,
     list_folders,
+    list_personal_todos,
     update_folder,
+    update_personal_todo,
     list_meetings,
     personal_context,
     personalization,
     save_meeting,
+    set_folder_image_keywords,
+    set_folder_image_status,
     suggest_folder,
 )
+from app.services.folder_images import folder_image_path, generate_folder_image
 from app.services.meeting_analyzer import (
     analyze_personal_focus,
     analyze_transcript_with_llm,
@@ -45,14 +54,76 @@ def meeting_history(current_user: str = "", folder_id: str = "") -> list[dict]:
     return list_meetings(current_user, folder_id)
 
 
+@router.get("/meetings/todos")
+def personal_todos(current_user: str = "") -> list[dict]:
+    return list_personal_todos(current_user)
+
+
+@router.post("/meetings/todos")
+def add_personal_todo(payload: PersonalTodoPayload) -> dict:
+    try:
+        return create_personal_todo(payload.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.put("/meetings/todos/{todo_id}")
+def edit_personal_todo(todo_id: str, payload: PersonalTodoPayload) -> dict:
+    try:
+        todo = update_personal_todo(todo_id, payload.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if not todo:
+        raise HTTPException(status_code=404, detail="没有找到这条待办")
+    return todo
+
+
+@router.delete("/meetings/todos/{todo_id}")
+def remove_personal_todo(todo_id: str, current_user: str = "") -> dict:
+    if not delete_personal_todo(todo_id, current_user):
+        raise HTTPException(status_code=404, detail="没有找到这条待办")
+    return {"deleted": True}
+
+
 @router.get("/meetings/folders")
 def meeting_folders(current_user: str = "") -> list[dict]:
     return list_folders(current_user)
 
 
 @router.post("/meetings/folders")
-def create_meeting_folder(payload: RecordingFolderPayload) -> dict:
-    return create_folder(payload.model_dump())
+def create_meeting_folder(payload: RecordingFolderPayload, background_tasks: BackgroundTasks) -> dict:
+    folder = create_folder(payload.model_dump())
+    status = "pending" if settings.openai_api_key.strip() else "unavailable"
+    set_folder_image_status(folder["id"], payload.current_user, status)
+    if status == "pending":
+        background_tasks.add_task(generate_folder_image, folder["id"], payload.current_user)
+    folder["image_status"] = status
+    return folder
+
+
+@router.post("/meetings/folders/{folder_id}/image")
+def retry_folder_image(folder_id: str, payload: RecordingFolderImagePayload, background_tasks: BackgroundTasks) -> dict:
+    folder = get_folder(folder_id, payload.current_user)
+    if not folder or folder["is_default"]:
+        raise HTTPException(status_code=404, detail="没有找到这个文件夹")
+    if not settings.openai_api_key.strip():
+        raise HTTPException(status_code=503, detail="尚未配置图片生成 API Key")
+    if folder["image_status"] != "pending":
+        set_folder_image_keywords(folder_id, payload.current_user, payload.image_keywords)
+        set_folder_image_status(folder_id, payload.current_user, "pending")
+        background_tasks.add_task(generate_folder_image, folder_id, payload.current_user)
+    return {"image_status": "pending"}
+
+
+@router.get("/meetings/folders/{folder_id}/image")
+def meeting_folder_image(folder_id: str, current_user: str) -> FileResponse:
+    folder = get_folder(folder_id, current_user)
+    if not folder or not folder["image_available"]:
+        raise HTTPException(status_code=404, detail="没有找到文件夹图片")
+    path = folder_image_path(folder_id)
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="没有找到文件夹图片")
+    return FileResponse(path, media_type="image/webp", headers={"Cache-Control": "no-store"})
 
 
 @router.post("/meetings/folders/suggest")

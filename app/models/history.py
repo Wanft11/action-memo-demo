@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Annotated, Any
 
 from pydantic import BaseModel, Field
 
@@ -16,6 +16,12 @@ class RecordingFolderPayload(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     keywords: list[str] = []
     aliases: list[str] = []
+    image_keywords: list[Annotated[str, Field(min_length=1, max_length=40)]] = Field(default_factory=list, max_length=8)
+
+
+class RecordingFolderImagePayload(BaseModel):
+    current_user: str = Field(min_length=1, max_length=80)
+    image_keywords: list[Annotated[str, Field(min_length=1, max_length=40)]] = Field(default_factory=list, max_length=8)
 
 
 class RecordingFolderUpdatePayload(BaseModel):
@@ -29,3 +35,10 @@ class FolderSuggestionPayload(BaseModel):
     transcript: str = Field(min_length=1)
     meeting_title: str = ""
     summary: str = ""
+
+
+class PersonalTodoPayload(BaseModel):
+    current_user: str = Field(min_length=1, max_length=80)
+    title: str = Field(min_length=1, max_length=200)
+    deadline: str = Field(default="", max_length=80)
+    completed: bool = False

@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_transcription_model: str = "gpt-transcribe"
     openai_analysis_model: str = "gpt-4o-mini"
+    openai_image_model: str = "gpt-image-2.5-flare"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
