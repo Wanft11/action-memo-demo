@@ -1226,6 +1226,7 @@
       .home-preview { border-top: 1px solid #e8edf4; }
       .home-preview-row { display: flex; align-items: center; gap: 12px; min-height: 55px; padding: 9px 2px; border-bottom: 1px solid #e8edf4; color: #293241; }
       .home-preview-row > span:nth-child(2) { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+      .home-preview-row--task > span:nth-child(2) { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
       .home-preview-row small { color: #748091; white-space: nowrap; }
       .home-preview-row .icon { width: 18px; height: 18px; color: #246de4; }
       .home-preview-row--record { width: 100%; border-left: 0; border-right: 0; border-top: 0; background: transparent; text-align: left; cursor: pointer; }
@@ -2079,7 +2080,7 @@
         const reminder = reminderText(mine);
         const hasPreviewRecord = Boolean(homePreviewRecordId && !result);
         document.querySelector("#homeTasks").innerHTML = (reminder ? `<p class="due-reminder" role="status">${escapeHtml(reminder)}</p>` : "") + (previewTasks.length ? previewTasks.map(({ task, pending: needsReview }) =>
-          `${hasPreviewRecord ? `<button class="home-preview-row home-preview-row--task" type="button" data-open-preview-record="${escapeHtml(homePreviewRecordId)}" aria-label="打开任务：${escapeHtml(task.task)}">` : '<div class="home-preview-row">'}<svg class="icon"><use href="${task.completed ? "#icon-check-square" : "#icon-circle"}" /></svg><span>${escapeHtml(task.task)}</span><small>${needsReview ? "待确认" : escapeHtml(dueLabel(task))}</small>${hasPreviewRecord ? '<svg class="icon link-chevron"><use href="#icon-chevron-right" /></svg></button>' : "</div>"}`,
+          `${hasPreviewRecord ? `<button class="home-preview-row home-preview-row--task" type="button" data-open-preview-record="${escapeHtml(homePreviewRecordId)}" aria-label="打开任务：${escapeHtml(task.task)}">` : '<div class="home-preview-row home-preview-row--task">'}<svg class="icon"><use href="${task.completed ? "#icon-check-square" : "#icon-circle"}" /></svg><span>${escapeHtml(task.task)}${needsReview || dueLabel(task) ? `<small>${needsReview ? "待确认" : escapeHtml(dueLabel(task))}</small>` : ""}</span>${hasPreviewRecord ? '<svg class="icon link-chevron"><use href="#icon-chevron-right" /></svg></button>' : "</div>"}`,
         ).join("") : '<div class="home-preview-empty">生成任务后，这里会显示与你有关的待办。</div>');
         document.querySelector("#homeRecent").innerHTML = recentRecords.length ? recentRecords.slice(0, 2).map((record) =>
           `<button class="home-preview-row home-preview-row--record" type="button" data-recent-id="${escapeHtml(record.id)}"><svg class="icon"><use href="#icon-play" /></svg><span><strong>${escapeHtml(record.meeting_title)}</strong><small>${escapeHtml(new Date(record.updated_at).toLocaleString("zh-CN"))}</small></span><svg class="icon link-chevron"><use href="#icon-chevron-right" /></svg></button>`,
