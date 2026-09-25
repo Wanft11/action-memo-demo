@@ -15,6 +15,7 @@ from app.services.personal_memory import (
     delete_personal_todo,
     delete_folder,
     delete_meeting,
+    folder_focus_transcript,
     get_folder,
     get_meeting,
     list_folders,
@@ -153,7 +154,7 @@ def suggest_meeting_folder(payload: FolderSuggestionPayload) -> dict:
 
 @router.put("/meetings/folders/{folder_id}")
 def update_meeting_folder(folder_id: str, payload: RecordingFolderUpdatePayload) -> dict:
-    folder = update_folder(folder_id, payload.current_user, payload.keywords, payload.aliases)
+    folder = update_folder(folder_id, payload.current_user, payload.keywords, payload.aliases, payload.focus_modes)
     if not folder:
         raise HTTPException(status_code=404, detail="没有找到这个文件夹")
     return folder
@@ -238,16 +239,19 @@ def analyze_focus(
     focus_query: str = Form(default=""),
     folder_id: str = Form(default=""),
 ) -> MeetingFocusAnalysis:
-    if not transcript.strip():
+    scoped_transcript = transcript.strip()
+    if folder_id.strip():
+        scoped_transcript = folder_focus_transcript(current_user, folder_id)
+    if not scoped_transcript:
         raise HTTPException(status_code=422, detail="请先提供转写内容")
     if not focus_query.strip():
         raise HTTPException(status_code=422, detail="请输入想关注的重点")
 
     return analyze_personal_focus(
-        transcript=transcript,
+        transcript=scoped_transcript,
         current_user=current_user,
         focus_query=focus_query,
-        personal_context=personal_context(current_user, transcript, folder_id),
+        personal_context=personal_context(current_user, scoped_transcript, folder_id),
     )
 
 

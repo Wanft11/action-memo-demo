@@ -17,6 +17,7 @@ class RecordingFolderPayload(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     keywords: list[str] = []
     aliases: list[str] = []
+    focus_modes: list[str] = []
     image_keywords: list[Annotated[str, Field(min_length=1, max_length=40)]] = Field(default_factory=list, max_length=8)
 
 
@@ -29,6 +30,7 @@ class RecordingFolderUpdatePayload(BaseModel):
     current_user: str = Field(min_length=1, max_length=80)
     keywords: list[str] = []
     aliases: list[str] = []
+    focus_modes: list[str] = []
 
 
 class FolderSuggestionPayload(BaseModel):

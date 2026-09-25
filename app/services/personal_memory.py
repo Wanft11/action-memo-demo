@@ -45,6 +45,7 @@ def _connection() -> sqlite3.Connection:
             name TEXT NOT NULL,
             keywords_json TEXT NOT NULL DEFAULT '[]',
             aliases_json TEXT NOT NULL DEFAULT '[]',
+            focus_modes_json TEXT NOT NULL DEFAULT '[]',
             image_keywords_json TEXT NOT NULL DEFAULT '[]',
             image_status TEXT NOT NULL DEFAULT '',
             image_requested_at TEXT NOT NULL DEFAULT '',
@@ -60,6 +61,8 @@ def _connection() -> sqlite3.Connection:
         connection.execute("ALTER TABLE recording_folders ADD COLUMN image_keywords_json TEXT NOT NULL DEFAULT '[]'")
     if "image_requested_at" not in folder_columns:
         connection.execute("ALTER TABLE recording_folders ADD COLUMN image_requested_at TEXT NOT NULL DEFAULT ''")
+    if "focus_modes_json" not in folder_columns:
+        connection.execute("ALTER TABLE recording_folders ADD COLUMN focus_modes_json TEXT NOT NULL DEFAULT '[]'")
     connection.execute(
         """
         CREATE TABLE IF NOT EXISTS personal_todos (
@@ -93,6 +96,21 @@ def _todo_from_row(row: sqlite3.Row) -> dict[str, Any]:
     }
 
 
+def _due_at_passed_for_one_day(due_at: str) -> bool:
+    if not due_at:
+        return False
+    try:
+        deadline = datetime.fromisoformat(due_at)
+    except ValueError:
+        return False
+    now = datetime.now(deadline.tzinfo) if deadline.tzinfo else datetime.now()
+    return now >= deadline + timedelta(days=1)
+
+
+def _completed_value(payload: dict[str, Any]) -> bool:
+    return bool(payload.get("completed", False)) or _due_at_passed_for_one_day(str(payload.get("due_at") or ""))
+
+
 def list_personal_todos(current_user: str) -> list[dict[str, Any]]:
     if not current_user.strip():
         return []
@@ -101,6 +119,16 @@ def list_personal_todos(current_user: str) -> list[dict[str, Any]]:
             "SELECT * FROM personal_todos WHERE current_user = ? ORDER BY completed ASC, created_at DESC",
             (current_user.strip(),),
         ).fetchall()
+        overdue_ids = [row["id"] for row in rows if not row["completed"] and _due_at_passed_for_one_day(row["due_at"])]
+        if overdue_ids:
+            connection.executemany(
+                "UPDATE personal_todos SET completed = 1, updated_at = ? WHERE id = ?",
+                [(datetime.now(timezone.utc).isoformat(), todo_id) for todo_id in overdue_ids],
+            )
+            rows = connection.execute(
+                "SELECT * FROM personal_todos WHERE current_user = ? ORDER BY completed ASC, created_at DESC",
+                (current_user.strip(),),
+            ).fetchall()
     return [_todo_from_row(row) for row in rows]
 
 
@@ -114,7 +142,7 @@ def create_personal_todo(payload: dict[str, Any]) -> dict[str, Any]:
     with _connection() as connection:
         connection.execute(
             "INSERT INTO personal_todos (id, current_user, title, deadline, due_at, completed, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (todo_id, user, title, str(payload.get("deadline") or "").strip(), str(payload.get("due_at") or "").strip(), int(bool(payload.get("completed", False))), now, now),
+            (todo_id, user, title, str(payload.get("deadline") or "").strip(), str(payload.get("due_at") or "").strip(), int(_completed_value(payload)), now, now),
         )
         row = connection.execute("SELECT * FROM personal_todos WHERE id = ?", (todo_id,)).fetchone()
     return _todo_from_row(row)
@@ -129,7 +157,7 @@ def update_personal_todo(todo_id: str, payload: dict[str, Any]) -> dict[str, Any
         changed = connection.execute(
             """UPDATE personal_todos SET title = ?, deadline = ?, due_at = ?, completed = ?, updated_at = ?
             WHERE id = ? AND current_user = ?""",
-            (title, str(payload.get("deadline") or "").strip(), str(payload.get("due_at") or "").strip(), int(bool(payload.get("completed", False))), datetime.now(timezone.utc).isoformat(), todo_id, user),
+            (title, str(payload.get("deadline") or "").strip(), str(payload.get("due_at") or "").strip(), int(_completed_value(payload)), datetime.now(timezone.utc).isoformat(), todo_id, user),
         ).rowcount
         if not changed:
             return None
@@ -153,6 +181,7 @@ def _folder_from_row(row: sqlite3.Row) -> dict[str, Any]:
         "name": row["name"],
         "keywords": json.loads(row["keywords_json"] or "[]"),
         "aliases": json.loads(row["aliases_json"] or "[]"),
+        "focus_modes": json.loads(row["focus_modes_json"] or "[]"),
         "image_keywords": json.loads(row["image_keywords_json"] or "[]"),
         "image_status": row["image_status"],
         "image_available": (DATA_DIR / "folder-images" / f"{row['id']}.webp").is_file(),
@@ -171,9 +200,9 @@ def ensure_default_folder(current_user: str) -> dict[str, Any]:
             folder_id = str(uuid.uuid4())
             connection.execute(
                 """INSERT INTO recording_folders
-                (id, current_user, name, keywords_json, aliases_json, is_default, created_at)
-                VALUES (?, ?, ?, ?, ?, 1, ?)""",
-                (folder_id, user, "默认文件夹", "[]", json.dumps([user], ensure_ascii=False), datetime.now(timezone.utc).isoformat()),
+                (id, current_user, name, keywords_json, aliases_json, focus_modes_json, is_default, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, 1, ?)""",
+                (folder_id, user, "默认文件夹", "[]", json.dumps([user], ensure_ascii=False), "[]", datetime.now(timezone.utc).isoformat()),
             )
             row = connection.execute("SELECT * FROM recording_folders WHERE id = ?", (folder_id,)).fetchone()
         connection.execute(
@@ -246,14 +275,15 @@ def create_folder(payload: dict[str, Any]) -> dict[str, Any]:
     with _connection() as connection:
         connection.execute(
             """INSERT INTO recording_folders
-            (id, current_user, name, keywords_json, aliases_json, image_keywords_json, is_default, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, 0, ?)""",
+            (id, current_user, name, keywords_json, aliases_json, focus_modes_json, image_keywords_json, is_default, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)""",
             (
                 folder_id,
                 user,
                 name,
                 json.dumps([item.strip() for item in payload.get("keywords", []) if item.strip()], ensure_ascii=False),
                 json.dumps([item.strip() for item in payload.get("aliases", []) if item.strip()], ensure_ascii=False),
+                json.dumps(list(dict.fromkeys(item.strip() for item in payload.get("focus_modes", []) if item.strip())), ensure_ascii=False),
                 json.dumps(list(dict.fromkeys(item.strip() for item in payload.get("image_keywords", []) if item.strip())), ensure_ascii=False),
                 datetime.now(timezone.utc).isoformat(),
             ),
@@ -287,14 +317,15 @@ def set_folder_image_status(folder_id: str, current_user: str, status: str) -> b
     return bool(changed)
 
 
-def update_folder(folder_id: str, current_user: str, keywords: list[str], aliases: list[str]) -> dict[str, Any] | None:
+def update_folder(folder_id: str, current_user: str, keywords: list[str], aliases: list[str], focus_modes: list[str]) -> dict[str, Any] | None:
     with _connection() as connection:
         cursor = connection.execute(
-            """UPDATE recording_folders SET keywords_json = ?, aliases_json = ?
+            """UPDATE recording_folders SET keywords_json = ?, aliases_json = ?, focus_modes_json = ?
             WHERE id = ? AND current_user = ?""",
             (
                 json.dumps(list(dict.fromkeys(item.strip() for item in keywords if item.strip())), ensure_ascii=False),
                 json.dumps(list(dict.fromkeys(item.strip() for item in aliases if item.strip())), ensure_ascii=False),
+                json.dumps(list(dict.fromkeys(item.strip() for item in focus_modes if item.strip())), ensure_ascii=False),
                 folder_id,
                 current_user.strip(),
             ),
@@ -475,6 +506,30 @@ def get_meeting(meeting_id: str, current_user: str) -> dict[str, Any] | None:
             (meeting_id, current_user.strip()),
         ).fetchone()
     return _record_from_row(row, include_content=True) if row else None
+
+
+def folder_focus_transcript(current_user: str, folder_id: str, limit: int = 12) -> str:
+    """Combine recent saved records into timestamped, title-labelled focus context."""
+    folder = get_folder(folder_id, current_user)
+    if not folder:
+        return ""
+
+    lines: list[str] = []
+    for summary in list_meetings(current_user, folder["id"])[:limit]:
+        record = get_meeting(summary["id"], current_user)
+        if not record:
+            continue
+        title = record["meeting_title"].strip() or "未命名记录"
+        for raw_line in record["transcript"].splitlines():
+            line = raw_line.strip()
+            if not line:
+                continue
+            timestamp = re.match(r"^(\d{1,2}:\d{2}(?::\d{2})?)\s*(.*)$", line)
+            if timestamp:
+                lines.append(f"{timestamp.group(1)} 【{title}】{timestamp.group(2)}")
+            else:
+                lines.append(f"【{title}】{line}")
+    return "\n".join(lines)
 
 
 def delete_meeting(meeting_id: str, current_user: str) -> bool:

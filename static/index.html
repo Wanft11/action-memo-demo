@@ -397,6 +397,7 @@
       .todo-title { min-width: 0; overflow-wrap: anywhere; font-weight: 650; }
       .todo-deadline, .todo-needs-date { color: var(--muted); font-size: 13px; white-space: nowrap; }
       .todo-needs-date { color: #ad6a25; }
+      .todo-complete-state { color: #16845f; font-size: 12px; font-weight: 700; white-space: nowrap; }
       .todo-chevron { flex: 0 0 auto; color: #7b8798; transition: transform 180ms ease; }
       .todo-toggle[aria-expanded="true"] .todo-chevron { transform: rotate(180deg); }
       .todo-detail { padding: 0 12px 16px 30px; color: #4a5668; line-height: 1.6; }
@@ -853,6 +854,28 @@
         font-weight: 700;
       }
 
+      .focus-mode-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .focus-mode-chip {
+        border: 1px solid #cfe2ff;
+        border-radius: 999px;
+        padding: 7px 10px;
+        background: #f5f9ff;
+        color: #356ce2;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .focus-mode-chip:hover {
+        background: #eaf2ff;
+      }
+
       .focus-answer {
         border-left: 4px solid #45b895;
         background: linear-gradient(120deg, #effbf7, #f4f9ff);
@@ -1206,6 +1229,8 @@
       .home-preview-row small { color: #748091; white-space: nowrap; }
       .home-preview-row .icon { width: 18px; height: 18px; color: #246de4; }
       .home-preview-row--record { width: 100%; border-left: 0; border-right: 0; border-top: 0; background: transparent; text-align: left; cursor: pointer; }
+      .home-preview-row--task { width: 100%; border-left: 0; border-right: 0; border-top: 0; background: transparent; text-align: left; cursor: pointer; }
+      .home-preview-row--task:hover { color: #1767ef; }
       .home-preview-row--record span:nth-child(2) { display: grid; gap: 3px; }
       .home-preview-row--record strong { font-weight: 650; }
       .home-preview-empty { padding: 15px 2px; color: #778293; font-size: 13px; }
@@ -1513,6 +1538,11 @@
           <input class="input" id="folderAliases" placeholder="用顿号或逗号分隔，例如：爸爸、老万" />
         </div>
         <div class="field" style="margin-top: 14px">
+          <label for="folderFocusModes">关注方式（可选）</label>
+          <input class="input" id="folderFocusModes" placeholder="例如：需求、异议、报价承诺、下一步" />
+          <p class="folder-hint">用于在这个场景的历史记录中提问和推荐问题。</p>
+        </div>
+        <div class="field" style="margin-top: 14px">
           <label for="folderImageKeywords">图标物件关键词（可选）</label>
           <input class="input" id="folderImageKeywords" placeholder="例如：相框、绿植、钥匙" />
           <p class="folder-hint">留空时使用场景关键词；不会影响归档。</p>
@@ -1562,6 +1592,11 @@
           <label for="editFolderAliases">这个场景中对我的称呼</label>
           <input class="input" id="editFolderAliases" placeholder="用顿号或逗号分隔" />
         </div>
+        <div class="field" style="margin-top: 14px">
+          <label for="editFolderFocusModes">关注方式</label>
+          <input class="input" id="editFolderFocusModes" placeholder="用顿号或逗号分隔，例如：需求、异议、报价承诺、下一步" />
+          <p class="folder-hint">保存后会用于这个场景下的历史提问。</p>
+        </div>
         <p class="panel-note" id="folderEditError" role="alert"></p>
         <div class="button-row" style="margin-top: 18px">
           <button class="btn btn-primary" type="submit">保存</button>
@@ -1607,6 +1642,7 @@
       let focusMessage = "";
       let focusLoading = false;
       let focusController = null;
+      let focusFolderId = "";
       let currentMeetingId = "";
       let currentRecordCreatedAt = "";
       let sourceAudioFile = null;
@@ -1632,6 +1668,7 @@
       let libraryFolderId = "";
       let recentRecords = [];
       let homePreviewAnalysis = null;
+      let homePreviewRecordId = "";
       let manualTodos = [];
       let todoNotice = "";
 
@@ -1725,6 +1762,32 @@
         document.querySelectorAll("[data-input-mode]").forEach((button) => {
           button.setAttribute("aria-pressed", String(button.dataset.inputMode === mode));
         });
+      }
+
+      function startNewRecording() {
+        analysisController?.abort();
+        result = null;
+        resultUser = "";
+        currentMeetingId = "";
+        currentRecordCreatedAt = "";
+        focusResult = null;
+        focusTrace = null;
+        focusMessage = "";
+        expandedTaskKey = "";
+        editingTodoKey = "";
+        editingTaskKey = "";
+        transcriptInput.value = "";
+        audioInput.value = "";
+        audioFileName.textContent = "尚未选择录音文件";
+        setSourceAudio(null);
+        markers.splice(0, markers.length);
+        renderMarkers();
+        updateSpeakerOptions();
+        setInputMode("audio");
+        generationStatus.textContent = "";
+        resultStatus.textContent = "";
+        saveBtn.disabled = true;
+        saveBtn.textContent = "保存到文件夹";
       }
 
       document.querySelectorAll("[data-input-mode]").forEach((button) => {
@@ -1861,6 +1924,32 @@
         return task.due_at ? localDateTime(task.due_at) : "";
       }
 
+      function completeExpiredTasks(analysis) {
+        if (!analysis?.all_tasks) return false;
+        const now = Date.now();
+        const completedKeys = new Set();
+        (analysis.all_tasks || []).forEach((task) => {
+          const due = taskDueAt(task);
+          const dueTime = due ? new Date(due).getTime() : Number.NaN;
+          if (!task.completed && Number.isFinite(dueTime) && now >= dueTime + 24 * 60 * 60 * 1000) {
+            task.completed = true;
+            completedKeys.add(taskKey(task));
+          }
+        });
+        if (!completedKeys.size) return false;
+        (analysis.my_tasks || []).forEach((task) => {
+          if (completedKeys.has(taskKey(task))) task.completed = true;
+        });
+        analysis.my_tasks = (analysis.all_tasks || []).filter(taskBelongsToMe);
+        return true;
+      }
+
+      function autoCompleteGeneratedTasks() {
+        if (!completeExpiredTasks(result)) return;
+        todoNotice = "已将超过截止时间 24 小时的任务自动标记为完成。";
+        updateSavedMeeting();
+      }
+
       function dueLabel(task) {
         const due = taskDueAt(task);
         return due ? due.replace("T", " ") : hasSpecificDeadline(task.deadline) ? task.deadline : "";
@@ -1918,7 +2007,11 @@
             if (taskKey(task) === key) task.completed = completed;
           }
         }
-        todoNotice = currentMeetingId ? "" : "这条录音还未保存，完成状态会在保存后保留。";
+        const task = (result.all_tasks || []).find((item) => taskKey(item) === key);
+        const action = completed ? "已完成" : "已恢复";
+        todoNotice = currentMeetingId
+          ? `${action}「${task?.task || "这条任务"}」。`
+          : `${action}「${task?.task || "这条任务"}」。这条录音保存后，完成状态会一并保留。`;
         render();
         updateSavedMeeting();
       }
@@ -1984,8 +2077,9 @@
         const pending = (previewAnalysis?.all_tasks || []).filter(taskNeedsMyReview);
         const previewTasks = [...mine.map((task) => ({ task, pending: false })), ...pending.map((task) => ({ task, pending: true }))].slice(0, 3);
         const reminder = reminderText(mine);
+        const hasPreviewRecord = Boolean(homePreviewRecordId && !result);
         document.querySelector("#homeTasks").innerHTML = (reminder ? `<p class="due-reminder" role="status">${escapeHtml(reminder)}</p>` : "") + (previewTasks.length ? previewTasks.map(({ task, pending: needsReview }) =>
-          `<div class="home-preview-row"><svg class="icon"><use href="${needsReview ? "#icon-circle" : "#icon-check-square"}" /></svg><span>${escapeHtml(task.task)}</span><small>${needsReview ? "待确认" : escapeHtml(dueLabel(task))}</small></div>`,
+          `${hasPreviewRecord ? `<button class="home-preview-row home-preview-row--task" type="button" data-open-preview-record="${escapeHtml(homePreviewRecordId)}" aria-label="打开任务：${escapeHtml(task.task)}">` : '<div class="home-preview-row">'}<svg class="icon"><use href="${task.completed ? "#icon-check-square" : "#icon-circle"}" /></svg><span>${escapeHtml(task.task)}</span><small>${needsReview ? "待确认" : escapeHtml(dueLabel(task))}</small>${hasPreviewRecord ? '<svg class="icon link-chevron"><use href="#icon-chevron-right" /></svg></button>' : "</div>"}`,
         ).join("") : '<div class="home-preview-empty">生成任务后，这里会显示与你有关的待办。</div>');
         document.querySelector("#homeRecent").innerHTML = recentRecords.length ? recentRecords.slice(0, 2).map((record) =>
           `<button class="home-preview-row home-preview-row--record" type="button" data-recent-id="${escapeHtml(record.id)}"><svg class="icon"><use href="#icon-play" /></svg><span><strong>${escapeHtml(record.meeting_title)}</strong><small>${escapeHtml(new Date(record.updated_at).toLocaleString("zh-CN"))}</small></span><svg class="icon link-chevron"><use href="#icon-chevron-right" /></svg></button>`,
@@ -2010,6 +2104,8 @@
                 const record = await latest.json();
                 if (currentUser() !== user || result) return;
                 homePreviewAnalysis = record.analysis;
+                homePreviewRecordId = record.id;
+                completeExpiredTasks(homePreviewAnalysis);
               }
             }
           }
@@ -2092,11 +2188,11 @@
         }, 4000);
       }
 
-      async function createFolder({ name, keywords = [], aliases = [], imageKeywords = [] }) {
+      async function createFolder({ name, keywords = [], aliases = [], focusModes = [], imageKeywords = [] }) {
         const response = await fetch("/api/meetings/folders", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ current_user: currentUser(), name, keywords, aliases, image_keywords: imageKeywords }),
+          body: JSON.stringify({ current_user: currentUser(), name, keywords, aliases, focus_modes: focusModes, image_keywords: imageKeywords }),
         });
         if (!response.ok) throw new Error("文件夹创建失败");
         const folder = await response.json();
@@ -2132,11 +2228,11 @@
         render();
       }
 
-      async function updateFolder(folderId, keywords, aliases) {
+      async function updateFolder(folderId, keywords, aliases, focusModes) {
         const response = await fetch(`/api/meetings/folders/${encodeURIComponent(folderId)}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ current_user: currentUser(), keywords, aliases }),
+          body: JSON.stringify({ current_user: currentUser(), keywords, aliases, focus_modes: focusModes }),
         });
         if (!response.ok) throw new Error("文件夹更新失败");
         await loadFolders(selectedFolderId);
@@ -2168,6 +2264,7 @@
         document.querySelector("#folderEditName").textContent = folder.name;
         document.querySelector("#editFolderKeywords").value = (folder.keywords || []).join("、");
         document.querySelector("#editFolderAliases").value = (folder.aliases || []).join("、");
+        document.querySelector("#editFolderFocusModes").value = (folder.focus_modes || []).join("、");
         document.querySelector("#folderEditError").textContent = "";
         folderEditDialog.showModal();
       }
@@ -2178,6 +2275,7 @@
         const text = selected.map((folder) => [folder.name,
           `称呼：${folder.aliases?.join("、") || "未设置"}`,
           `场景关键词：${folder.keywords?.join("、") || "未设置"}`,
+          `关注方式：${folder.focus_modes?.join("、") || "未设置"}`,
           `图标关键词：${folder.image_keywords?.join("、") || "未设置"}`].join("\n")).join("\n\n");
         try {
           await navigator.clipboard.writeText(text);
@@ -2418,6 +2516,15 @@
         return categories.find(([pattern]) => pattern.test(scene))?.[1] || "general";
       }
 
+      function defaultFocusModes(name, keywords = []) {
+        const scene = `${name} ${keywords.join(" ")}`;
+        if (/(客户|商务|销售|合作|报价)/.test(scene)) return ["需求", "异议", "报价承诺", "下一步"];
+        if (/(家庭|家人|亲子|父母|孩子|生活)/.test(scene)) return ["时间安排", "采购", "陪伴", "健康提醒"];
+        if (/(学习|课程|考试|学校|读书)/.test(scene)) return ["知识点", "作业", "截止", "复习计划"];
+        if (/(面试|求职|职业|招聘)/.test(scene)) return ["建议", "公司", "联系人", "要补的材料"];
+        return [];
+      }
+
       function renderFolderGrid() {
         if (!folders.length) return "";
         return `<div class="folder-grid">${folders.map((folder) => `
@@ -2428,6 +2535,7 @@
               <div class="folder-card-top"><strong>${escapeHtml(folder.name)}</strong><span>${folder.meeting_count || 0} 条</span></div>
               <small>${folder.aliases?.length ? `称呼：${escapeHtml(folder.aliases.join("、"))}` : "使用账号默认称呼"}</small>
               <small>${folder.keywords?.length ? escapeHtml(folder.keywords.join("、")) : "未分类记录"}</small>
+              ${folder.focus_modes?.length ? `<small>关注：${escapeHtml(folder.focus_modes.join("、"))}</small>` : ""}
               ${folder.image_status === "pending" ? "<small>正在生成专属图标…</small>" : ""}
             </button>
           </div>
@@ -2487,7 +2595,38 @@
         return bestMatch && bestMatch.score > 0.18 ? bestMatch : null;
       }
 
+      function focusQuestionForMode(mode, folderName) {
+        const questions = {
+          "需求": "客户上次最在意什么？",
+          "异议": "对方提出过哪些顾虑或异议？",
+          "报价承诺": "我答应过哪些报价或交付事项？",
+          "下一步": "这件事接下来需要我做什么？",
+          "时间安排": "我答应家人的时间安排有哪些？",
+          "采购": "家里还需要采购什么？",
+          "陪伴": "我答应陪伴家人的事情有哪些？",
+          "健康提醒": "有哪些健康提醒需要跟进？",
+          "知识点": "最近需要掌握哪些知识点？",
+          "作业": "还有哪些作业或练习没有完成？",
+          "截止": "近期有哪些明确的截止时间？",
+          "复习计划": "接下来应该如何安排复习？",
+          "建议": "最近几次记录里，我反复被建议改善什么？",
+          "公司": "提到过哪些值得关注的公司或岗位？",
+          "联系人": "有哪些联系人需要我后续跟进？",
+          "要补的材料": "我还需要补哪些材料？",
+        };
+        return questions[mode] || `在「${folderName}」里，和「${mode}」有关的重点是什么？`;
+      }
+
       function renderFocusWorkspace() {
+        const focusFolder = folders.find((folder) => folder.id === focusFolderId);
+        const scopeOptions = [
+          '<option value="">当前记录</option>',
+          ...folders.filter((folder) => (folder.meeting_count || 0) > 0).map((folder) =>
+            `<option value="${escapeHtml(folder.id)}" ${folder.id === focusFolderId ? "selected" : ""}>${escapeHtml(folder.name)}（${folder.meeting_count} 条记录）</option>`),
+        ].join("");
+        const modeQuestions = (focusFolder?.focus_modes || []).map((mode) => `
+          <button class="focus-mode-chip" type="button" data-focus-action="use-mode" data-focus-mode="${escapeHtml(mode)}">${escapeHtml(mode)}</button>
+        `).join("");
         const sourceCards = (focusResult?.sources || [])
           .map((source, index) => `
             <article class="focus-source">
@@ -2517,13 +2656,13 @@
                 <div class="focus-source-title">原文依据</div>
                 ${sourceCards || '<div class="empty">暂未定位到可复查的原文依据。</div>'}
               </section>
-              <section class="focus-query">
+              ${focusFolder ? "" : `<section class="focus-query">
                 <label for="traceQuery">复查索引</label>
                 <div class="focus-search">
                   <input class="input" id="traceQuery" placeholder="输入一句话或粘贴一段原文，定位对应内容" />
                   <button class="btn" type="button" data-focus-action="search-trace">检索原文</button>
                 </div>
-              </section>
+              </section>`}
               ${focusTrace ? `
                 <section class="focus-trace">
                   <div class="focus-trace-top">
@@ -2541,10 +2680,14 @@
             <div class="focus-heading">
               <div>
                 <p class="focus-kicker">个人重点</p>
-                <h2>这场沟通里，你最想弄清什么？</h2>
+                <h2>${focusFolder ? `在「${escapeHtml(focusFolder.name)}」里，你想弄清什么？` : "这场沟通里，你最想弄清什么？"}</h2>
               </div>
             </div>
             <section class="focus-query">
+              <label for="focusFolder">提问范围</label>
+              <select class="input" id="focusFolder">${scopeOptions}</select>
+              ${focusFolder ? `<p class="panel-note">将综合「${escapeHtml(focusFolder.name)}」中已保存的 ${focusFolder.meeting_count || 0} 条记录，并在答案里保留对应原文依据。</p>` : '<p class="panel-note">仅分析当前正在查看或编辑的这条记录。</p>'}
+              ${modeQuestions ? `<div class="focus-mode-chips" aria-label="场景关注方式">${modeQuestions}</div>` : ""}
               <label for="focusQuery">输入重点</label>
               <textarea id="focusQuery" placeholder="例如：我接下来要准备什么？客户对方案最在意的是什么？">${escapeHtml(focusQuery)}</textarea>
               <div class="button-row">
@@ -2579,7 +2722,6 @@
       }
 
       function taskBelongsToMe(task) {
-        if (!task.due_at && !hasSpecificDeadline(task.deadline)) return false;
         if (task.personal === true) return true;
         if (task.personal === false) return false;
         if (["已取消", "已忽略"].includes(task.status)) return false;
@@ -2739,7 +2881,10 @@
             return;
           }
           content.innerHTML = `
-            <h2 class="panel-title">${libraryScope === "folder" ? escapeHtml(folders.find((folder) => folder.id === libraryFolderId)?.name || "记录") : "全部记录"} <span class="todo-count">${libraryRecords.length}</span></h2>
+            <div class="focus-source-top">
+              <h2 class="panel-title">${libraryScope === "folder" ? escapeHtml(folders.find((folder) => folder.id === libraryFolderId)?.name || "记录") : "全部记录"} <span class="todo-count">${libraryRecords.length}</span></h2>
+              ${libraryScope === "folder" && libraryRecords.length ? '<button class="btn btn-primary" type="button" data-library-action="folder-focus">提问这个场景</button>' : ""}
+            </div>
             ${libraryNotice ? `<p class="panel-note" role="status">${escapeHtml(libraryNotice)}</p>` : ""}
             <div class="library-context"><button class="btn" type="button" data-library-action="show-folders">文件夹</button><span>${libraryScope === "folder" ? "当前场景" : "按最近更新排序"}</span></div>
             <div class="library-toolbar">
@@ -2844,7 +2989,7 @@
               ${isMine ? `<input class="todo-check" type="checkbox" data-todo-complete="${escapeHtml(key)}" aria-label="${task.completed ? "标记未完成" : "标记完成"}：${escapeHtml(task.task)}" ${task.completed ? "checked" : ""} />` : ""}
               <button class="todo-toggle" type="button" data-task-expand="${escapeHtml(key)}" aria-expanded="${open}" aria-label="${escapeHtml(task.task)}，${open ? "收起" : "展开"}来源片段">
                 ${isMine ? "" : '<span class="todo-bullet" aria-hidden="true">•</span>'}
-                <span class="todo-main"><span class="todo-title">${escapeHtml(task.task)}</span>${hasDeadline ? `<span class="todo-deadline">ddl：${escapeHtml(dueLabel(task))}</span>` : ""}</span>
+                <span class="todo-main"><span class="todo-title">${escapeHtml(task.task)}</span>${isMine && task.completed ? '<span class="todo-complete-state">已完成</span>' : ""}${hasDeadline ? `<span class="todo-deadline">ddl：${escapeHtml(dueLabel(task))}</span>` : ""}</span>
                 <span class="todo-chevron" aria-hidden="true">⌄</span>
               </button>
               ${open ? `<div class="todo-detail">
@@ -2856,7 +3001,7 @@
                 <div class="todo-actions">
                   ${isEditing
                     ? `<button class="btn btn-primary" type="button" data-task-action="save-todo" data-task-key="${escapeHtml(key)}">保存</button><button class="btn" type="button" data-task-action="cancel-todo" data-task-key="${escapeHtml(key)}">取消</button>`
-                    : `${!isMine && task.personal !== true ? `<button class="btn btn-claim" type="button" data-task-action="claim" data-task-key="${escapeHtml(key)}">确认是我的任务</button>` : ""}<button class="btn" type="button" data-task-action="edit-todo" data-task-key="${escapeHtml(key)}">${hasDeadline ? "修改任务" : "补充时间或修改任务"}</button>${isMine && taskDueAt(task) ? `<button class="btn" type="button" data-task-action="calendar" data-task-key="${escapeHtml(key)}">加入日历</button>` : ""}${task.manual ? `<button class="btn" type="button" data-task-action="delete-todo" data-task-key="${escapeHtml(key)}">删除</button>` : ""}`}
+                    : `${!isMine && task.personal !== true ? `<button class="btn btn-claim" type="button" data-task-action="claim" data-task-key="${escapeHtml(key)}">确认是我的任务</button><button class="btn" type="button" data-task-action="not-mine" data-task-key="${escapeHtml(key)}">不是我的任务</button>` : ""}<button class="btn" type="button" data-task-action="edit-todo" data-task-key="${escapeHtml(key)}">${hasDeadline ? "修改任务" : "补充时间或修改任务"}</button>${isMine && taskDueAt(task) ? `<button class="btn" type="button" data-task-action="calendar" data-task-key="${escapeHtml(key)}">加入日历</button>` : ""}${isMine && !task.manual ? `<button class="btn" type="button" data-task-action="remove-todo" data-task-key="${escapeHtml(key)}">移除任务</button>` : ""}${task.manual ? `<button class="btn" type="button" data-task-action="delete-todo" data-task-key="${escapeHtml(key)}">删除</button>` : ""}`}
                 </div>
               </div>` : ""}
             </li>`;
@@ -3065,6 +3210,7 @@
           if (submittedMode === "audio") transcriptInput.value = (result.transcript || []).join("\n");
           saveBtn.disabled = false;
           saveBtn.textContent = "保存到文件夹";
+          autoCompleteGeneratedTasks();
           activateTab("task-list");
           render();
           const modeLabel = result.demo_mode ? "本地规则分析，仅供核对。" : "AI 分析完成。";
@@ -3119,6 +3265,7 @@
         currentMeetingId = "";
         recentRecords = [];
         homePreviewAnalysis = null;
+        homePreviewRecordId = "";
         manualTodos = [];
         renderHome();
         void loadFolders();
@@ -3155,6 +3302,10 @@
           name,
           keywords: splitTags(document.querySelector("#folderKeywords").value),
           aliases: splitTags(document.querySelector("#folderAliases").value),
+          focusModes: (() => {
+            const configured = splitTags(document.querySelector("#folderFocusModes").value);
+            return configured.length ? configured : defaultFocusModes(name, splitTags(document.querySelector("#folderKeywords").value));
+          })(),
           imageKeywords,
         }).then(() => {
           folderSelectionExplicit = true;
@@ -3213,6 +3364,7 @@
             editingFolderId,
             splitTags(document.querySelector("#editFolderKeywords").value),
             splitTags(document.querySelector("#editFolderAliases").value),
+            splitTags(document.querySelector("#editFolderFocusModes").value),
           );
           folderEditDialog.close();
         } catch {
@@ -3229,10 +3381,17 @@
       recordBtn.addEventListener("click", () => activateTab("record"));
 
       document.querySelectorAll("[data-open-screen]").forEach((button) => {
-        button.addEventListener("click", () => openScreen(button.dataset.openScreen));
+        button.addEventListener("click", () => {
+          if (button.dataset.openScreen === "input") startNewRecording();
+          openScreen(button.dataset.openScreen);
+        });
       });
       document.querySelectorAll("[data-open-tab]").forEach((button) => {
         button.addEventListener("click", () => {
+          if (button.dataset.openTab === "task-list" && !result && homePreviewRecordId) {
+            void openSavedRecord(homePreviewRecordId);
+            return;
+          }
           if (button.dataset.openTab === "library") {
             libraryView = button.dataset.libraryView || "folders";
             libraryScope = "all";
@@ -3276,7 +3435,10 @@
 
       document.querySelector("#screenActionBtn").addEventListener("click", () => {
         if (activeTab === "task-list") openTodoDialog();
-        else openScreen("input");
+        else {
+          startNewRecording();
+          openScreen("input");
+        }
       });
       manageBtn.addEventListener("click", () => {
         if (activeScreen !== "view" || activeTab !== "library" || libraryView !== "folders") return;
@@ -3335,6 +3497,7 @@
           updateSpeakerOptions();
           saveBtn.disabled = false;
           saveBtn.textContent = "已保存";
+          autoCompleteGeneratedTasks();
           resultStatus.textContent = "已打开保存的记录。";
           activateTab("task-list");
         } catch {
@@ -3346,6 +3509,10 @@
       document.querySelector("#homeRecent").addEventListener("click", (event) => {
         const button = event.target.closest("[data-recent-id]");
         if (button) void openSavedRecord(button.dataset.recentId);
+      });
+      document.querySelector("#homeTasks").addEventListener("click", (event) => {
+        const button = event.target.closest("[data-open-preview-record]");
+        if (button) void openSavedRecord(button.dataset.openPreviewRecord);
       });
 
       document.querySelectorAll(".tab").forEach((tab) => {
@@ -3400,6 +3567,14 @@
           void loadLibrary();
           return;
         }
+        if (libraryButton?.dataset.libraryAction === "folder-focus") {
+          focusFolderId = libraryFolderId;
+          focusResult = null;
+          focusTrace = null;
+          focusMessage = "";
+          activateTab("focus");
+          return;
+        }
         if (libraryButton?.dataset.libraryAction === "show-folders") {
           libraryView = "folders";
           libraryScope = "all";
@@ -3421,6 +3596,16 @@
         if (focusActionButton) {
           const focusAction = focusActionButton.dataset.focusAction;
           focusQuery = content.querySelector("#focusQuery")?.value.trim() || focusQuery;
+
+          if (focusAction === "use-mode") {
+            const folder = folders.find((item) => item.id === focusFolderId);
+            focusQuery = focusQuestionForMode(focusActionButton.dataset.focusMode, folder?.name || "当前场景");
+            focusResult = null;
+            focusTrace = null;
+            render();
+            content.querySelector("#focusQuery")?.focus();
+            return;
+          }
 
           if (focusAction === "cancel") {
             focusController?.abort();
@@ -3468,7 +3653,7 @@
 
           if (focusAction === "generate") {
             const transcript = document.querySelector("#transcript").value.trim();
-            if (!transcript) {
+            if (!transcript && !focusFolderId) {
               focusMessage = "请先粘贴转写内容、上传录音，或加载测试转写。";
               render();
               return;
@@ -3490,7 +3675,7 @@
             formData.append("transcript", transcript);
             formData.append("current_user", document.querySelector("#user").value.trim());
             formData.append("focus_query", focusQuery);
-            formData.append("folder_id", selectedFolderId);
+            formData.append("folder_id", focusFolderId);
 
             fetch("/api/meetings/focus", {
               method: "POST",
@@ -3542,7 +3727,20 @@
         }
 
         if (action === "claim") {
+          todoNotice = "已确认并加入我的任务清单。";
           setTaskPersonal(key, true);
+          return;
+        }
+
+        if (action === "not-mine") {
+          todoNotice = "已标记为非我的任务，不会再出现在当前任务清单。";
+          setTaskPersonal(key, false);
+          return;
+        }
+
+        if (action === "remove-todo") {
+          todoNotice = "已从我的任务清单移除这条任务。";
+          setTaskPersonal(key, false);
           return;
         }
 
@@ -3633,6 +3831,15 @@
       }, true);
 
       content.addEventListener("change", (event) => {
+        if (event.target.matches("#focusFolder")) {
+          focusQuery = content.querySelector("#focusQuery")?.value.trim() || focusQuery;
+          focusFolderId = event.target.value;
+          focusResult = null;
+          focusTrace = null;
+          focusMessage = "";
+          render();
+          return;
+        }
         const folderCheckbox = event.target.closest("[data-manage-folder]");
         if (folderCheckbox) {
           toggleManagedFolder(folderCheckbox.dataset.manageFolder, folderCheckbox.checked);
@@ -3649,7 +3856,7 @@
         if (!todo) return;
         checkbox.disabled = true;
         void updateManualTodo(todo, { completed: checkbox.checked }).then(() => {
-          todoNotice = "";
+          todoNotice = checkbox.checked ? `已完成「${todo.title}」。` : `已恢复「${todo.title}」为未完成。`;
           render();
         }).catch(() => {
           todoNotice = "更新完成状态失败，请稍后重试。";

@@ -1,6 +1,7 @@
 import tempfile
 import sqlite3
 import unittest
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -73,3 +74,26 @@ class PersonalTodoTests(unittest.TestCase):
             "current_user": "小万", "title": "检查材料", "due_at": "明天可能",
         })
         self.assertEqual(response.status_code, 422)
+
+    def test_only_tasks_past_due_by_one_day_are_auto_completed(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            data_dir = Path(temp_dir) / ".action-memo"
+            database_path = data_dir / "action_memo.db"
+            with patch("app.services.personal_memory.DATA_DIR", data_dir), patch(
+                "app.services.personal_memory.DATABASE_PATH", database_path
+            ):
+                client = TestClient(app)
+                expired_due_at = (datetime.now() - timedelta(days=1, minutes=1)).replace(second=0, microsecond=0).isoformat()
+                recent_due_at = (datetime.now() - timedelta(hours=23)).replace(second=0, microsecond=0).isoformat()
+                payloads = [
+                    {"current_user": "小万", "title": "已过期任务", "due_at": expired_due_at},
+                    {"current_user": "小万", "title": "尚未满一天", "due_at": recent_due_at},
+                    {"current_user": "小万", "title": "无时间任务"},
+                ]
+                for payload in payloads:
+                    self.assertEqual(client.post("/api/meetings/todos", json=payload).status_code, 200)
+
+                todos = {item["title"]: item for item in client.get("/api/meetings/todos", params={"current_user": "小万"}).json()}
+                self.assertTrue(todos["已过期任务"]["completed"])
+                self.assertFalse(todos["尚未满一天"]["completed"])
+                self.assertFalse(todos["无时间任务"]["completed"])
