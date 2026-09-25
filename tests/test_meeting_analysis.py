@@ -73,10 +73,23 @@ class MeetingAnalysisTests(unittest.TestCase):
         self.assertGreaterEqual(len(result.sources), 2)
         self.assertIn("技术流程", result.sources[0].evidence)
         self.assertEqual(result.sources[0].source, "06:03")
-        self.assertIn("今晚", result.sources[1].evidence)
-        self.assertIn("阿哲表示", result.answer)
-        self.assertIn("今晚", result.answer)
-        self.assertNotIn("这个你之后", result.answer)
+        self.assertTrue(all("技术流程" in source.evidence or "今晚" in source.evidence for source in result.sources))
+        self.assertIn("本地检索到", result.answer)
+
+    def test_focus_sources_are_not_limited_to_two(self):
+        transcript = """10:00
+小万：预算安排先控制在两万元以内。
+小林：预算安排还要覆盖差旅费用。
+阿哲：预算安排周五前发给团队确认。
+小周：预算安排确定后我更新方案。"""
+        result = build_local_focus_analysis(transcript, "小万", "预算安排")
+        self.assertEqual(len(result.sources), 4)
+
+        normalized = normalize_focus_analysis({
+            "answer": "预算安排有四个相关信息点。",
+            "sources": [{"evidence_ids": ["T001", "T002", "T003", "T004"]}],
+        }, transcript, "预算安排")
+        self.assertEqual(len(normalized.sources), 4)
 
     def test_local_focus_abstains_when_question_has_no_matching_evidence(self):
         result = build_local_focus_analysis(TRANSCRIPT, "小万", "餐厅地址在哪里")

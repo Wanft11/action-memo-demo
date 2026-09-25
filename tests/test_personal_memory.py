@@ -105,7 +105,7 @@ class PersonalMemoryTests(unittest.TestCase):
                 self.assertEqual(get_meeting(saved["id"], "小万")["folder_id"], default_id)
                 self.assertEqual(len(list_meetings("小万")), 1)
 
-    def test_folder_suggestion_needs_two_keywords_and_a_clear_winner(self):
+    def test_folder_suggestion_accepts_strong_single_keyword_and_requires_clear_winner(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             data_dir = Path(temp_dir) / ".action-memo"
             database_path = data_dir / "action_memo.db"
@@ -126,12 +126,13 @@ class PersonalMemoryTests(unittest.TestCase):
                 self.assertEqual(suggestion["folder_id"], client_folder["id"])
                 self.assertEqual(suggestion["matched_keywords"], ["客户", "报价", "续费"])
                 self.assertEqual(suggest_folder("小万", "客户报价需要更新。 ")["folder_id"], client_folder["id"])
+                self.assertEqual(suggest_folder("小万", "普通寒暄。", "客户回访")["folder_id"], client_folder["id"])
                 self.assertIsNone(suggest_folder("小万", "讨论客户需求。"))
                 self.assertIsNone(suggest_folder("小万", "客户报价和产品评审都要讨论。"))
                 self.assertIsNone(suggest_folder("陌生账号", "客户报价和续费都要讨论。"))
 
                 response = TestClient(app).post("/api/meetings/folders/suggest", json={
-                    "current_user": "小万", "transcript": "客户报价和续费都要讨论。"
+                    "current_user": "小万", "transcript": "普通寒暄。", "meeting_title": "客户回访"
                 })
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(response.json()["suggestion"]["folder_id"], client_folder["id"])

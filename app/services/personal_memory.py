@@ -262,7 +262,7 @@ def suggest_folder(current_user: str, transcript: str, meeting_title: str = "", 
         return None
     score, folder, matched = ranked[0]
     runner_up = ranked[1][0] if len(ranked) > 1 else 0
-    if len(matched) < 2 or score - runner_up < 2:
+    if not matched or score - runner_up < 2:
         return None
     return {"folder_id": folder["id"], "name": folder["name"], "matched_keywords": matched}
 
