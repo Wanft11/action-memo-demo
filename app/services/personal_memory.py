@@ -1,4 +1,5 @@
 import json
+import re
 import sqlite3
 import uuid
 from collections import Counter
@@ -9,7 +10,9 @@ from typing import Any
 
 DATA_DIR = Path(__file__).resolve().parents[2] / ".action-memo"
 DATABASE_PATH = DATA_DIR / "action_memo.db"
+AUDIO_SUFFIXES = {".mp3", ".mp4", ".m4a", ".wav", ".webm", ".mpeg", ".mpga", ".ogg", ".flac"}
 VAGUE_PROFILE_TASKS = {"跟进", "整理", "处理", "准备", "确认", "推进", "复盘", "相关内容", "后续事项"}
+SPECIFIC_DEADLINE = re.compile(r"\d{4}[-/年]\d{1,2}|\d{1,2}月\d{1,2}日|(?:本|下|这)?周[一二三四五六日天]|星期[一二三四五六日天]|今天|明天|后天|今晚|明晚|\d{1,2}[:：]\d{2}|\d{1,2}点")
 
 
 def _connection() -> sqlite3.Connection:
@@ -64,12 +67,16 @@ def _connection() -> sqlite3.Connection:
             current_user TEXT NOT NULL,
             title TEXT NOT NULL,
             deadline TEXT NOT NULL DEFAULT '',
+            due_at TEXT NOT NULL DEFAULT '',
             completed INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         )
         """
     )
+    todo_columns = {row["name"] for row in connection.execute("PRAGMA table_info(personal_todos)")}
+    if "due_at" not in todo_columns:
+        connection.execute("ALTER TABLE personal_todos ADD COLUMN due_at TEXT NOT NULL DEFAULT ''")
     return connection
 
 
@@ -79,6 +86,7 @@ def _todo_from_row(row: sqlite3.Row) -> dict[str, Any]:
         "current_user": row["current_user"],
         "title": row["title"],
         "deadline": row["deadline"],
+        "due_at": row["due_at"],
         "completed": bool(row["completed"]),
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
@@ -105,8 +113,8 @@ def create_personal_todo(payload: dict[str, Any]) -> dict[str, Any]:
     todo_id = str(uuid.uuid4())
     with _connection() as connection:
         connection.execute(
-            "INSERT INTO personal_todos (id, current_user, title, deadline, completed, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (todo_id, user, title, str(payload.get("deadline") or "").strip(), int(bool(payload.get("completed", False))), now, now),
+            "INSERT INTO personal_todos (id, current_user, title, deadline, due_at, completed, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (todo_id, user, title, str(payload.get("deadline") or "").strip(), str(payload.get("due_at") or "").strip(), int(bool(payload.get("completed", False))), now, now),
         )
         row = connection.execute("SELECT * FROM personal_todos WHERE id = ?", (todo_id,)).fetchone()
     return _todo_from_row(row)
@@ -119,9 +127,9 @@ def update_personal_todo(todo_id: str, payload: dict[str, Any]) -> dict[str, Any
         raise ValueError("账号和任务内容不能为空")
     with _connection() as connection:
         changed = connection.execute(
-            """UPDATE personal_todos SET title = ?, deadline = ?, completed = ?, updated_at = ?
+            """UPDATE personal_todos SET title = ?, deadline = ?, due_at = ?, completed = ?, updated_at = ?
             WHERE id = ? AND current_user = ?""",
-            (title, str(payload.get("deadline") or "").strip(), int(bool(payload.get("completed", False))), datetime.now(timezone.utc).isoformat(), todo_id, user),
+            (title, str(payload.get("deadline") or "").strip(), str(payload.get("due_at") or "").strip(), int(bool(payload.get("completed", False))), datetime.now(timezone.utc).isoformat(), todo_id, user),
         ).rowcount
         if not changed:
             return None
@@ -354,18 +362,44 @@ def _record_from_row(row: sqlite3.Row, include_content: bool = False) -> dict[st
         "folder_id": row["folder_id"],
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
+        "audio_available": meeting_audio_path(row["id"]) is not None,
     }
     analysis = json.loads(row["analysis_json"])
     tasks = analysis.get("all_tasks", [])
     record["task_count"] = len(tasks)
-    record["my_task_count"] = sum(
-        task.get("personal") is True
-        or (
-            task.get("personal") is not False
-            and row["current_user"] in str(task.get("assignee") or "").split("、")
+    folder = get_folder(row["folder_id"], row["current_user"]) if row["folder_id"] else None
+    identities = {row["current_user"], *((folder or {}).get("aliases") or [])}
+
+    def owner_matches(task: dict[str, Any]) -> bool:
+        return any(name in identities for name in re.split(r"[、，,和与及\s]+", str(task.get("assignee") or "")))
+
+    def is_mine(task: dict[str, Any]) -> bool:
+        if not task.get("due_at") and not SPECIFIC_DEADLINE.search(str(task.get("deadline") or "")):
+            return False
+        if task.get("personal") is True:
+            return True
+        if task.get("personal") is False or task.get("status") in {"已取消", "已忽略"}:
+            return False
+        if analysis.get("identity_confirmed") is False:
+            return False
+        return owner_matches(task) and (
+            task.get("status") == "已确认"
+            or (task.get("self_committed") is True and float(task.get("confidence", 0)) >= 0.75)
         )
-        for task in tasks
-    )
+
+    def needs_review(task: dict[str, Any]) -> bool:
+        if is_mine(task) or task.get("personal") is False or task.get("status") in {"已取消", "已忽略"}:
+            return False
+        if task.get("personal") is True:
+            return True
+        if float(task.get("confidence", 0)) < 0.75:
+            return False
+        if analysis.get("identity_confirmed") is False:
+            return True
+        return str(task.get("assignee") or "") in {"待确认", "我", ""} or owner_matches(task)
+
+    record["my_task_count"] = sum(is_mine(task) for task in tasks)
+    record["review_task_count"] = sum(needs_review(task) for task in tasks)
     record["confirmed_task_count"] = sum(
         str(task.get("status") or "") == "已确认" for task in tasks
     )
@@ -449,7 +483,38 @@ def delete_meeting(meeting_id: str, current_user: str) -> bool:
             "DELETE FROM saved_meetings WHERE id = ? AND current_user = ?",
             (meeting_id, current_user.strip()),
         ).rowcount
+    if deleted:
+        audio = meeting_audio_path(meeting_id)
+        if audio:
+            audio.unlink(missing_ok=True)
     return bool(deleted)
+
+
+def meeting_audio_path(meeting_id: str) -> Path | None:
+    try:
+        uuid.UUID(meeting_id)
+    except ValueError:
+        return None
+    audio_dir = DATA_DIR / "audio"
+    return next((audio_dir / f"{meeting_id}{suffix}" for suffix in AUDIO_SUFFIXES if (audio_dir / f"{meeting_id}{suffix}").is_file()), None)
+
+
+def store_meeting_audio(meeting_id: str, current_user: str, filename: str, audio_bytes: bytes) -> Path:
+    if not get_meeting(meeting_id, current_user):
+        raise ValueError("没有找到这条本地记录")
+    suffix = Path(filename).suffix.lower()
+    if suffix not in AUDIO_SUFFIXES or not audio_bytes or len(audio_bytes) > 25 * 1024 * 1024:
+        raise ValueError("请选择不超过 25 MB 的有效音频文件")
+    audio_dir = DATA_DIR / "audio"
+    audio_dir.mkdir(parents=True, exist_ok=True)
+    previous = meeting_audio_path(meeting_id)
+    destination = audio_dir / f"{meeting_id}{suffix}"
+    pending = audio_dir / f"{meeting_id}.pending"
+    pending.write_bytes(audio_bytes)
+    pending.replace(destination)
+    if previous and previous != destination:
+        previous.unlink(missing_ok=True)
+    return destination
 
 
 def build_personal_profile(current_user: str, folder_id: str = "") -> dict[str, Any]:

@@ -78,6 +78,23 @@ class MeetingAnalysisTests(unittest.TestCase):
         self.assertIn("今晚", result.answer)
         self.assertNotIn("这个你之后", result.answer)
 
+    def test_local_focus_abstains_when_question_has_no_matching_evidence(self):
+        result = build_local_focus_analysis(TRANSCRIPT, "小万", "餐厅地址在哪里")
+        self.assertEqual(result.sources, [])
+        self.assertIn("没有找到", result.answer)
+
+        broad = build_local_focus_analysis(TRANSCRIPT, "小万", "我需要准备什么")
+        self.assertEqual(broad.sources, [])
+        next_steps = build_local_focus_analysis(TRANSCRIPT, "小万", "我接下来要准备什么？")
+        self.assertEqual(next_steps.sources, [])
+
+    def test_model_focus_rejects_unrelated_citations(self):
+        result = normalize_focus_analysis({
+            "title": "餐厅地址", "answer": "餐厅在一号楼", "sources": [{"evidence_ids": ["T001"]}],
+        }, TRANSCRIPT, "餐厅地址在哪里")
+        self.assertEqual(result.sources, [])
+        self.assertNotIn("一号楼", result.answer)
+
     def test_focus_citations_reconstruct_original_turns(self):
         result = normalize_focus_analysis(
             {
@@ -150,6 +167,45 @@ class MeetingAnalysisTests(unittest.TestCase):
 
         self.assertEqual(result.marked_moments[0].time, "09:01")
         self.assertEqual(result.marked_moments[0].source, "recording_bean")
+
+    def test_marker_insight_uses_a_bounded_context_window(self):
+        transcript = """00:10 说话人 1：先聊一下无关背景。
+00:55 说话人 1：小万，请在周五前整理演示脚本。
+01:05 小万：好，我周五下午前发出来。
+01:25 说话人 1：如果客户确认预算，我们再安排试用。
+02:10 说话人 2：这里已经超出重点窗口。"""
+        result = build_local_transcript_analysis(transcript, "小万", [MeetingMarker(time="01:05")])
+        insight = result.marker_insights[0]
+        self.assertEqual(insight.window_start, "00:20")
+        self.assertEqual(insight.window_end, "01:50")
+        self.assertEqual(insight.personal_action, "整理演示脚本")
+        self.assertEqual(insight.deadline, "周五前")
+        self.assertTrue(insight.conditions)
+        self.assertNotIn("超出重点窗口", "\n".join(item.evidence for item in insight.evidence))
+
+    def test_marker_prefers_the_users_nearest_unfinished_commitment(self):
+        transcript = """11:22 说话人 1：报名表十二点半要交。
+11:42 小万：我还没填，等会提醒我。
+12:26 说话人 1：小万，请在明天下午前整理一页演示脚本。"""
+        result = build_local_transcript_analysis(transcript, "小万", [MeetingMarker(time="11:42")])
+        insight = result.marker_insights[0]
+        self.assertEqual(insight.personal_action, "填写报名表")
+        self.assertEqual(insight.deadline, "十二点半")
+        self.assertIn("明确了你的行动：填写报名表", insight.summary)
+        self.assertIn("我还没填", insight.evidence[0].evidence)
+
+    def test_model_marker_insight_keeps_only_cited_source(self):
+        data = {
+            "all_tasks": [{"task": "填写报名表", "assignee": "小万", "deadline": "12:30", "evidence_ids": ["T003", "T004"]}],
+            "marker_insights": [{
+                "marker_time": "08:06", "summary": "报名表需要尽快填写。", "personal_action": "填写报名表",
+                "deadline": "12:30", "conditions": [], "risks": ["临近截止"], "evidence_ids": ["T003", "T004"],
+            }],
+        }
+        result = normalize_llm_analysis(data, TRANSCRIPT, "小万", [MeetingMarker(time="08:06")])
+        insight = result["marker_insights"][0]
+        self.assertEqual(insight["marker_time"], "08:06")
+        self.assertEqual([item["source"] for item in insight["evidence"]], ["08:06", "08:06"])
 
     def test_demo_marker_times_still_point_to_the_intended_turns(self):
         markers = {

@@ -1170,9 +1170,9 @@
       .brand { display: block; flex: 1; min-width: 0; text-align: center; }
       .brand h1 { font-size: 23px; line-height: 1.2; font-weight: 800; }
       .brand .subtitle { margin: 3px 0 0; font-size: 13px; color: #8b95a6; }
-      .account-avatar { display: grid; place-items: center; width: 42px; height: 42px; flex: 0 0 42px; border: 0; border-radius: 50%; background: #eaf2ff; color: #2d65cf; font-size: 13px; font-weight: 750; white-space: nowrap; cursor: pointer; }
-      .topbar-spacer { width: 42px; flex: 0 0 42px; }
-      .icon-button { display: grid; place-items: center; width: 38px; height: 38px; flex: 0 0 38px; padding: 0; border: 0; background: transparent; color: #273343; cursor: pointer; }
+      .account-avatar { display: grid; place-items: center; width: 44px; height: 44px; flex: 0 0 44px; border: 0; border-radius: 50%; background: #eaf2ff; color: #2d65cf; font-size: 13px; font-weight: 750; white-space: nowrap; cursor: pointer; }
+      .topbar-spacer { width: 44px; flex: 0 0 44px; }
+      .icon-button { display: grid; place-items: center; width: 44px; height: 44px; flex: 0 0 44px; padding: 0; border: 0; background: transparent; color: #273343; cursor: pointer; }
       .icon-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
       .icon { display: inline-block; width: 22px; height: 22px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; vertical-align: middle; }
       .home-screen { padding: 14px 22px 28px; }
@@ -1198,7 +1198,7 @@
       .home-section { margin-top: 29px; }
       .home-section-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
       .home-section-head h2 { margin: 0; font-size: 17px; line-height: 1.25; }
-      .home-section-head button { display: inline-flex; align-items: center; gap: 1px; padding: 4px 0; border: 0; background: transparent; color: #7b8594; font-size: 12px; cursor: pointer; }
+      .home-section-head button { display: inline-flex; align-items: center; gap: 1px; min-height: 44px; padding: 4px 8px; border: 0; background: transparent; color: #7b8594; font-size: 12px; cursor: pointer; }
       .home-section-head .icon { width: 15px; height: 15px; }
       .home-preview { border-top: 1px solid #e8edf4; }
       .home-preview-row { display: flex; align-items: center; gap: 12px; min-height: 55px; padding: 9px 2px; border-bottom: 1px solid #e8edf4; color: #293241; }
@@ -1221,12 +1221,12 @@
       .screen-header-actions { display: flex; align-items: center; gap: 8px; }
       .shell:not(.is-home) .topbar { display: none; }
       .screen-header h2 { margin: 0; font-size: 19px; line-height: 1.25; text-align: center; }
-      .screen-header > span { width: 38px; }
+      .screen-header > span { width: 44px; }
       .input-screen, .results-screen { border: 0; border-radius: 0; box-shadow: none; }
       .input-screen .panel-header { padding: 18px 22px 0; }
       .input-screen .controls { padding: 20px 22px 30px; gap: 18px; }
       .input-mode { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 8px; background: #f1f4f9; }
-      .input-mode button { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 42px; border: 0; border-radius: 6px; background: transparent; color: #687586; font-size: 14px; font-weight: 700; cursor: pointer; }
+      .input-mode button { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; border: 0; border-radius: 6px; background: transparent; color: #687586; font-size: 14px; font-weight: 700; cursor: pointer; }
       .input-mode button[aria-pressed="true"] { background: #fff; color: #1767ef; box-shadow: 0 2px 8px rgba(25, 54, 103, .09); }
       .input-mode .icon { width: 17px; height: 17px; }
       .input-pane { display: grid; gap: 12px; }
@@ -1234,7 +1234,7 @@
       .input-pane textarea { min-height: 230px; }
       .input-pane .file-picker { min-height: 96px; padding: 16px; border-style: dashed; background: #f8fbff; }
       .input-pane .file-picker-button { background: #e8f1ff; }
-      .sample-trigger { justify-self: start; border: 0; background: transparent; padding: 4px 0; color: #2469e6; font-size: 13px; font-weight: 700; cursor: pointer; }
+      .sample-trigger { justify-self: start; min-height: 44px; border: 0; background: transparent; padding: 4px 8px; color: #2469e6; font-size: 13px; font-weight: 700; cursor: pointer; }
       .recording-settings { border-top: 1px solid #e8edf4; border-bottom: 1px solid #e8edf4; padding: 2px 0; }
       .recording-settings summary { display: flex; align-items: center; gap: 8px; min-height: 56px; cursor: pointer; list-style: none; }
       .recording-settings summary::-webkit-details-marker { display: none; }
@@ -1247,9 +1247,10 @@
       .input-primary-actions .btn { min-height: 48px; }
       .input-primary-actions #pauseBtn { border-color: #cfdbeb; color: #3864a4; }
       .result-actions { display: flex; flex-wrap: wrap; gap: 9px; padding: 14px 22px 0; }
-      .result-actions .btn { flex: 1 1 0; min-height: 42px; }
+      .result-actions .btn { flex: 1 1 0; min-height: 44px; }
       .result-actions #saveBtn { flex-basis: 100%; }
       .result-actions #resultStatus { flex-basis: 100%; }
+      #recordingPlayer { display: block; width: calc(100% - 44px); margin: 12px 22px 0; }
       .results-screen .tabs { display: none; }
       .results-screen .content { padding: 22px; }
       .results-screen .hero-metric { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
@@ -1276,7 +1277,26 @@
       .results-screen .todo-check { width: 19px; height: 19px; flex: 0 0 19px; margin: 0 11px 0 2px; accent-color: #1767ef; cursor: pointer; }
       .results-screen .todo-manual-note { margin: 8px 0; color: #8792a1; font-size: 12px; }
       .results-screen .todo-heading { justify-content: space-between; }
-      .results-screen .todo-heading .icon-button { width: 32px; height: 32px; margin-left: auto; color: #1767ef; }
+      .results-screen .todo-heading .icon-button { width: 44px; height: 44px; margin-left: auto; color: #1767ef; }
+      .due-reminder { margin: 0 0 16px; padding: 12px 14px; border-left: 3px solid #e38b23; background: #fff8ed; color: #75450f; font-size: 13px; line-height: 1.5; }
+      .marker-review { margin: 0 0 22px; padding: 0 0 20px; border-bottom: 8px solid #f3f5f8; }
+      .marker-review-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+      .marker-review-head h3 { margin: 0; font-size: 18px; }
+      .marker-review-head span { color: #66738a; font-size: 12px; }
+      .marker-insight { margin-top: 10px; border: 1px solid #dce5f7; border-radius: 8px; background: #fff; overflow: hidden; }
+      .marker-insight.is-saved { border-color: #a9dacd; }
+      .marker-insight-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 13px 0; }
+      .marker-insight-time { color: #536bd7; font-size: 12px; font-weight: 800; }
+      .marker-insight-range { color: #8691a3; font-size: 12px; white-space: nowrap; }
+      .marker-insight-summary { margin: 8px 13px; color: #27364b; font-size: 14px; font-weight: 650; line-height: 1.55; }
+      .marker-insight-action { margin: 0 13px 10px; padding: 9px 10px; border-left: 3px solid #3d76f4; background: #f4f7ff; color: #30446d; font-size: 13px; line-height: 1.45; }
+      .marker-insight-action strong { color: #1f5fd5; }
+      .marker-insight-tags { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 13px 10px; }
+      .marker-insight-tag { padding: 4px 7px; border-radius: 5px; background: #fff3e5; color: #975712; font-size: 11px; line-height: 1.25; }
+      .marker-insight-evidence { margin: 0; padding: 10px 13px; border-top: 1px solid #edf1f7; background: #fafcff; color: #60708a; font-size: 12px; line-height: 1.5; }
+      .marker-insight-evidence + .marker-insight-evidence { padding-top: 0; border-top: 0; }
+      .marker-insight-actions { display: flex; flex-wrap: wrap; gap: 7px; padding: 10px 13px 13px; }
+      .marker-insight-actions .btn { min-height: 38px; padding: 7px 10px; font-size: 12px; }
       .todo-form-actions { display: flex; gap: 9px; margin-top: 18px; }
       .todo-form-actions .btn { flex: 1; }
       .results-screen .library-context { display: flex; align-items: center; gap: 12px; margin: 12px 0; color: #778395; font-size: 13px; }
@@ -1291,7 +1311,8 @@
       .results-screen .library-type { display: grid; place-items: center; width: 35px; height: 35px; flex: 0 0 35px; border-radius: 50%; background: #edf4ff; color: #226ce9; }
       .results-screen .library-type .icon { width: 16px; height: 16px; }
       .results-screen .library-item-actions { width: auto; flex: 0 0 auto; }
-      .results-screen .library-item-actions .btn { width: 36px; min-height: 36px; padding: 0; border: 0; color: #8995a6; }
+      .results-screen .library-item-actions .btn { width: 44px; min-height: 44px; padding: 0; border: 0; color: #8995a6; }
+      .manage-button { min-width: 44px; min-height: 44px; }
       .results-screen .library-item-actions .icon { width: 17px; height: 17px; }
       [hidden] { display: none !important; }
       @media (max-width: 560px) {
@@ -1402,6 +1423,7 @@
             <button class="btn" id="recordBtn" type="button">内容记录</button>
             <p class="panel-note" id="resultStatus" role="status"></p>
           </div>
+          <audio id="recordingPlayer" controls preload="metadata" hidden aria-label="原始录音播放器"></audio>
           <div class="tabs">
             <button class="tab active" data-tab="task-list" type="button">任务清单</button>
             <button class="tab" data-tab="library" type="button">文件夹</button>
@@ -1409,7 +1431,7 @@
             <button class="tab" data-tab="record" type="button">内容记录</button>
           </div>
           <div class="content" id="content">
-            <div class="empty">上传录音或直接点击生成，查看 Demo 结果。</div>
+            <div class="empty">上传录音或加载测试转写，生成个人任务清单。</div>
           </div>
         </section>
       </main>
@@ -1450,7 +1472,7 @@
       <form class="sample-dialog-content" id="todoForm">
         <div class="sample-dialog-top"><div><h2 class="sample-dialog-title" id="todoDialogTitle">添加待办</h2><p class="panel-note">手动待办会保存在当前账号下。</p></div><button class="icon-button" type="button" data-close-dialog="todoDialog" aria-label="关闭"><svg class="icon"><use href="#icon-plus" style="transform:rotate(45deg);transform-origin:center" /></svg></button></div>
         <div class="field"><label for="todoTitle">要做什么</label><input class="input" id="todoTitle" maxlength="200" required placeholder="例如：整理周五的演示材料" /></div>
-        <div class="field" style="margin-top:14px"><label for="todoDeadline">截止时间（可选）</label><input class="input" id="todoDeadline" maxlength="80" placeholder="例如：周五 18:00" /></div>
+        <div class="field" style="margin-top:14px"><label for="todoDeadline">截止时间（可选）</label><input class="input" id="todoDeadline" type="datetime-local" /></div>
         <p class="panel-note" id="todoFormError" role="alert"></p>
         <div class="todo-form-actions"><button class="btn btn-primary" type="submit">添加待办</button></div>
       </form>
@@ -1586,6 +1608,11 @@
       let focusLoading = false;
       let focusController = null;
       let currentMeetingId = "";
+      let currentRecordCreatedAt = "";
+      let sourceAudioFile = null;
+      let sourceAudioUrl = "";
+      let currentAudioName = "";
+      let recordAudioAvailable = false;
       let libraryRecords = [];
       let libraryMessage = "";
       let libraryNotice = "";
@@ -1745,8 +1772,109 @@
       }
 
       function manualTodoAsTask(todo) {
-        return { manual: true, id: todo.id, task: todo.title, deadline: todo.deadline,
+        return { manual: true, id: todo.id, task: todo.title, deadline: todo.deadline, due_at: todo.due_at,
           completed: todo.completed, assignee: currentUser(), source: "手动添加", evidence: "" };
+      }
+
+      function setSourceAudio(file, savedId = "") {
+        if (sourceAudioUrl.startsWith("blob:")) URL.revokeObjectURL(sourceAudioUrl);
+        sourceAudioFile = file;
+        currentAudioName = file?.name || "";
+        recordAudioAvailable = Boolean(savedId);
+        sourceAudioUrl = file ? URL.createObjectURL(file) : savedId
+          ? `/api/meetings/history/${encodeURIComponent(savedId)}/audio?current_user=${encodeURIComponent(currentUser())}` : "";
+        const player = document.querySelector("#recordingPlayer");
+        player.pause();
+        player.removeAttribute("src");
+        if (sourceAudioUrl) player.src = sourceAudioUrl;
+        player.hidden = !sourceAudioUrl;
+      }
+
+      function sourceSeconds(source) {
+        const parts = String(source || "").match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+        if (!parts) return null;
+        return parts[3] ? Number(parts[1]) * 3600 + Number(parts[2]) * 60 + Number(parts[3])
+          : Number(parts[1]) * 60 + Number(parts[2]);
+      }
+
+      function playSource(source) {
+        const player = document.querySelector("#recordingPlayer");
+        const seconds = sourceSeconds(source);
+        if (!sourceAudioUrl || seconds === null) return;
+        const seek = () => {
+          player.currentTime = Math.min(seconds, Number.isFinite(player.duration) ? Math.max(0, player.duration - 0.1) : seconds);
+          player.play().catch(() => { resultStatus.textContent = "无法播放原音频，请检查文件格式。"; });
+        };
+        if (player.readyState >= 1) seek();
+        else player.addEventListener("loadedmetadata", seek, { once: true });
+        player.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+
+      function downloadCalendar(task) {
+        const start = new Date(task.due_at);
+        if (Number.isNaN(start.getTime())) return;
+        const format = (date) => date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+        const escapeCalendar = (value) => String(value || "").replaceAll("\\", "\\\\")
+          .replaceAll("\n", "\\n").replaceAll(",", "\\,").replaceAll(";", "\\;");
+        const end = new Date(start.getTime() + 30 * 60 * 1000);
+        const calendar = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Action Memo//Personal Tasks//ZH",
+          "BEGIN:VEVENT", `UID:${crypto.randomUUID()}@action-memo.local`, `DTSTAMP:${format(new Date())}`,
+          `DTSTART:${format(start)}`, `DTEND:${format(end)}`, `SUMMARY:${escapeCalendar(task.task)}`,
+          "BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:任务即将截止", "TRIGGER:-PT15M",
+          "END:VALARM", "END:VEVENT", "END:VCALENDAR", ""].join("\r\n");
+        const url = URL.createObjectURL(new Blob([calendar], { type: "text/calendar;charset=utf-8" }));
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "action-memo-task.ics";
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+
+      function localDateTime(value) {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return "";
+        const pad = (part) => String(part).padStart(2, "0");
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+      }
+
+      function suggestedDueAt(deadline) {
+        if (!deadline) return "";
+        const now = currentRecordCreatedAt ? new Date(currentRecordCreatedAt) : new Date();
+        const date = new Date(now);
+        if (/后天/.test(deadline)) date.setDate(date.getDate() + 2);
+        else if (/明天|明晚/.test(deadline)) date.setDate(date.getDate() + 1);
+        else if (/(?:下周|本周|这周)?(?:周|星期)[一二三四五六日天]/.test(deadline)) {
+          const match = deadline.match(/(下周|本周|这周)?(?:周|星期)([一二三四五六日天])/);
+          const days = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 日: 7, 天: 7 };
+          let delta = days[match[2]] - (date.getDay() || 7);
+          if (match[1] === "下周") delta += 7;
+          else if (!match[1] && delta < 0) delta += 7;
+          date.setDate(date.getDate() + delta);
+        } else if (!/今天|今晚/.test(deadline)) return "";
+        const clock = deadline.match(/(\d{1,2})(?:[:：](\d{2})|点(?:半)?)/);
+        date.setHours(clock ? Number(clock[1]) : /下午|晚上|今晚|明晚/.test(deadline) ? 18 : 12,
+          clock ? Number(clock[2] || (/点半/.test(deadline) ? 30 : 0)) : 0, 0, 0);
+        return localDateTime(date);
+      }
+
+      function taskDueAt(task) {
+        return task.due_at ? localDateTime(task.due_at) : "";
+      }
+
+      function dueLabel(task) {
+        const due = taskDueAt(task);
+        return due ? due.replace("T", " ") : hasSpecificDeadline(task.deadline) ? task.deadline : "";
+      }
+
+      function reminderText(tasks) {
+        const now = Date.now();
+        const due = tasks.filter((task) => !task.completed && taskDueAt(task))
+          .map((task) => ({ task, at: new Date(task.due_at).getTime() }))
+          .filter((item) => Number.isFinite(item.at) && item.at - now < 24 * 60 * 60 * 1000)
+          .sort((a, b) => a.at - b.at);
+        if (!due.length) return "";
+        const first = due[0];
+        return `${first.at < now ? "已逾期" : "即将截止"}：${first.task.task}（${dueLabel(first.task)}）${due.length > 1 ? `，另有 ${due.length - 1} 项` : ""}`;
       }
 
       async function loadManualTodos() {
@@ -1774,7 +1902,8 @@
         const response = await fetch(`/api/meetings/todos/${encodeURIComponent(todo.id)}`, {
           method: "PUT", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ current_user: currentUser(), title: fields.title ?? todo.title,
-            deadline: fields.deadline ?? todo.deadline, completed: fields.completed ?? todo.completed }),
+            deadline: fields.deadline ?? todo.deadline, due_at: fields.due_at ?? todo.due_at,
+            completed: fields.completed ?? todo.completed }),
         });
         if (!response.ok) throw new Error("保存待办失败");
         const updated = await response.json();
@@ -1854,9 +1983,10 @@
           ...(previewAnalysis?.my_tasks || []).filter((task) => task.personal !== false && !task.completed)];
         const pending = (previewAnalysis?.all_tasks || []).filter(taskNeedsMyReview);
         const previewTasks = [...mine.map((task) => ({ task, pending: false })), ...pending.map((task) => ({ task, pending: true }))].slice(0, 3);
-        document.querySelector("#homeTasks").innerHTML = previewTasks.length ? previewTasks.map(({ task, pending: needsReview }) =>
-          `<div class="home-preview-row"><svg class="icon"><use href="${needsReview ? "#icon-circle" : "#icon-check-square"}" /></svg><span>${escapeHtml(task.task)}</span><small>${needsReview ? "待确认" : hasSpecificDeadline(task.deadline) ? escapeHtml(task.deadline) : ""}</small></div>`,
-        ).join("") : '<div class="home-preview-empty">生成任务后，这里会显示与你有关的待办。</div>';
+        const reminder = reminderText(mine);
+        document.querySelector("#homeTasks").innerHTML = (reminder ? `<p class="due-reminder" role="status">${escapeHtml(reminder)}</p>` : "") + (previewTasks.length ? previewTasks.map(({ task, pending: needsReview }) =>
+          `<div class="home-preview-row"><svg class="icon"><use href="${needsReview ? "#icon-circle" : "#icon-check-square"}" /></svg><span>${escapeHtml(task.task)}</span><small>${needsReview ? "待确认" : escapeHtml(dueLabel(task))}</small></div>`,
+        ).join("") : '<div class="home-preview-empty">生成任务后，这里会显示与你有关的待办。</div>');
         document.querySelector("#homeRecent").innerHTML = recentRecords.length ? recentRecords.slice(0, 2).map((record) =>
           `<button class="home-preview-row home-preview-row--record" type="button" data-recent-id="${escapeHtml(record.id)}"><svg class="icon"><use href="#icon-play" /></svg><span><strong>${escapeHtml(record.meeting_title)}</strong><small>${escapeHtml(new Date(record.updated_at).toLocaleString("zh-CN"))}</small></span><svg class="icon link-chevron"><use href="#icon-chevron-right" /></svg></button>`,
         ).join("") : '<div class="home-preview-empty">录音与文字记录保存后会出现在这里。</div>';
@@ -2141,7 +2271,7 @@
         return {
           current_user: currentUser(),
           transcript: meetingTranscript(),
-          audio_name: document.querySelector("#audio").files[0]?.name || "",
+          audio_name: sourceAudioFile?.name || currentAudioName,
           folder_id: selectedFolderId,
           analysis: result,
         };
@@ -2182,11 +2312,27 @@
           if (!response.ok) throw new Error("保存失败");
           const record = await response.json();
           currentMeetingId = record.id;
+          currentRecordCreatedAt = record.created_at || "";
+          let audioSaved = true;
+          if (sourceAudioFile && !recordAudioAvailable) {
+            try {
+              const audioData = new FormData();
+              audioData.append("current_user", currentUser());
+              audioData.append("audio", sourceAudioFile);
+              const audioResponse = await fetch(`/api/meetings/history/${encodeURIComponent(record.id)}/audio`, {
+                method: "POST", body: audioData,
+              });
+              audioSaved = audioResponse.ok;
+              recordAudioAvailable = audioSaved;
+            } catch {
+              audioSaved = false;
+            }
+          }
           saveBtn.disabled = false;
           saveBtn.textContent = "已保存";
           if (!silent) {
-            generationStatus.textContent = "已保存到文件夹；后续人工判断会用于个性化分析。";
-            resultStatus.textContent = "已保存到文件夹。";
+            generationStatus.textContent = audioSaved ? "已保存到文件夹；后续人工判断会用于个性化分析。" : "文字已保存，但原音频保存失败；请重试保存。";
+            resultStatus.textContent = generationStatus.textContent;
           }
           void loadHomePreview();
         } catch (error) {
@@ -2433,7 +2579,7 @@
       }
 
       function taskBelongsToMe(task) {
-        if (!hasSpecificDeadline(task.deadline)) return false;
+        if (!task.due_at && !hasSpecificDeadline(task.deadline)) return false;
         if (task.personal === true) return true;
         if (task.personal === false) return false;
         if (["已取消", "已忽略"].includes(task.status)) return false;
@@ -2480,6 +2626,86 @@
           ${marker ? `<span class="transcript-marker-label">录音豆重点${marker.note ? ` · ${escapeHtml(marker.note)}` : ""}</span><br>` : ""}
           ${escapeHtml(line)}
         </div>`;
+      }
+
+      function markerInsightByTime(time) {
+        return (result?.marker_insights || []).find((item) => item.marker_time === time);
+      }
+
+      async function addMarkerActionToTasks(time) {
+        const insight = markerInsightByTime(time);
+        if (!insight?.personal_action) return;
+        const generatedTask = (result?.all_tasks || []).find((task) => task.task === insight.personal_action);
+        if (generatedTask) {
+          generatedTask.personal = true;
+          generatedTask.status = "已确认";
+          result.my_tasks = result.all_tasks.filter(taskBelongsToMe);
+          todoNotice = `已将「${insight.personal_action}」归入我的任务清单。`;
+          render();
+          updateSavedMeeting();
+          return;
+        }
+        try {
+          const response = await fetch("/api/meetings/todos", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ current_user: currentUser(), title: insight.personal_action, deadline: insight.deadline === "待确认" ? "" : insight.deadline }),
+          });
+          if (!response.ok) throw new Error("添加失败");
+          manualTodos.unshift(await response.json());
+          todoNotice = `已将「${insight.personal_action}」加入我的任务清单。`;
+          render();
+        } catch {
+          todoNotice = "加入待办失败，请稍后重试。";
+          render();
+        }
+      }
+
+      function toggleMarkerSaved(time) {
+        const insight = markerInsightByTime(time);
+        if (!insight) return;
+        insight.saved = !insight.saved;
+        todoNotice = insight.saved ? "已收藏这段录音豆重点。" : "已取消收藏。";
+        render();
+        updateSavedMeeting();
+      }
+
+      async function shareMarkerInsight(time) {
+        const insight = markerInsightByTime(time);
+        if (!insight) return;
+        const action = insight.personal_action ? `\n我的行动：${insight.personal_action}` : "";
+        const content = `录音豆重点｜${insight.marker_time}\n${insight.summary}${action}\n${(insight.evidence || []).map((item) => `${item.source} ${item.evidence}`).join("\n")}`;
+        try {
+          if (navigator.share) await navigator.share({ title: "录音豆重点", text: content });
+          else await navigator.clipboard.writeText(content);
+          todoNotice = navigator.share ? "已打开系统分享。" : "重点内容已复制。";
+        } catch (error) {
+          if (error?.name !== "AbortError") todoNotice = "复制或分享失败，请稍后重试。";
+        }
+        render();
+      }
+
+      function renderMarkerInsights() {
+        const insights = result?.marker_insights || [];
+        if (!insights.length) return "";
+        return `<section class="marker-review"><div class="marker-review-head"><h3>录音豆重点复盘</h3><span>按压点前后 45 秒</span></div>${insights.map((insight) => {
+          const tags = [
+            ...(insight.conditions || []).map((item) => `条件：${String(item).replace(/^[^：:]{1,12}[：:]\s*/, "").slice(0, 42)}`),
+            ...(insight.risks || []).map((item) => `注意：${String(item).replace(/^[^：:]{1,12}[：:]\s*/, "").slice(0, 42)}`),
+          ];
+          return `<article class="marker-insight ${insight.saved ? "is-saved" : ""}">
+            <div class="marker-insight-top"><span class="marker-insight-time">录音豆重点｜${escapeHtml(insight.marker_time)}</span><span class="marker-insight-range">${escapeHtml(insight.window_start)} - ${escapeHtml(insight.window_end)}</span></div>
+            <p class="marker-insight-summary">${escapeHtml(insight.summary)}</p>
+            ${insight.personal_action ? `<p class="marker-insight-action"><strong>我的行动</strong> ${escapeHtml(insight.personal_action)}${insight.deadline && insight.deadline !== "待确认" ? ` · ${escapeHtml(insight.deadline)}` : ""}</p>` : ""}
+            ${tags.length ? `<div class="marker-insight-tags">${tags.map((tag) => `<span class="marker-insight-tag">${escapeHtml(tag)}</span>`).join("")}</div>` : ""}
+            ${(insight.evidence || []).map((item) => `<p class="marker-insight-evidence"><strong>${escapeHtml(item.source)}</strong> ${escapeHtml(item.evidence)}</p>`).join("")}
+            <div class="marker-insight-actions">
+              ${sourceAudioUrl ? `<button class="btn" type="button" data-marker-action="play" data-marker-time="${escapeHtml(insight.marker_time)}">回听这段</button>` : ""}
+              ${insight.personal_action ? `<button class="btn btn-primary" type="button" data-marker-action="todo" data-marker-time="${escapeHtml(insight.marker_time)}">加入待办</button>` : ""}
+              <button class="btn" type="button" data-marker-action="save" data-marker-time="${escapeHtml(insight.marker_time)}">${insight.saved ? "已收藏" : "收藏"}</button>
+              <button class="btn" type="button" data-marker-action="share" data-marker-time="${escapeHtml(insight.marker_time)}">复制 / 分享</button>
+            </div>
+          </article>`;
+        }).join("")}</section>`;
       }
 
       function updateTaskFields(key, fields) {
@@ -2529,7 +2755,7 @@
           return;
         }
         if (!result && activeTab !== "task-list") {
-          content.innerHTML = '<div class="empty">上传录音或直接点击生成，查看 Demo 结果。</div>';
+          content.innerHTML = '<div class="empty">上传录音或加载测试转写，生成个人任务清单。</div>';
           return;
         }
         if (Array.isArray(result?.all_tasks)) {
@@ -2613,24 +2839,24 @@
             const key = taskKey(task);
             const open = expandedTaskKey === key;
             const isEditing = editingTodoKey === key;
-            const hasDeadline = hasSpecificDeadline(task.deadline);
+            const hasDeadline = Boolean(taskDueAt(task) || hasSpecificDeadline(task.deadline));
             return `<li class="todo-item ${task.completed ? "todo-item--done" : ""}">
               ${isMine ? `<input class="todo-check" type="checkbox" data-todo-complete="${escapeHtml(key)}" aria-label="${task.completed ? "标记未完成" : "标记完成"}：${escapeHtml(task.task)}" ${task.completed ? "checked" : ""} />` : ""}
               <button class="todo-toggle" type="button" data-task-expand="${escapeHtml(key)}" aria-expanded="${open}" aria-label="${escapeHtml(task.task)}，${open ? "收起" : "展开"}来源片段">
                 ${isMine ? "" : '<span class="todo-bullet" aria-hidden="true">•</span>'}
-                <span class="todo-main"><span class="todo-title">${escapeHtml(task.task)}</span>${hasDeadline ? `<span class="todo-deadline">ddl：${escapeHtml(task.deadline)}</span>` : ""}</span>
+                <span class="todo-main"><span class="todo-title">${escapeHtml(task.task)}</span>${hasDeadline ? `<span class="todo-deadline">ddl：${escapeHtml(dueLabel(task))}</span>` : ""}</span>
                 <span class="todo-chevron" aria-hidden="true">⌄</span>
               </button>
               ${open ? `<div class="todo-detail">
-                ${task.manual ? '<p class="todo-manual-note">手动添加</p>' : `${isMine ? "" : `<p>负责人：${task.personal === true ? "我（已确认）" : escapeHtml(task.assignee)}</p>`}<p class="todo-evidence"><strong>来源片段｜${escapeHtml(task.source)}</strong><br>${escapeHtml(task.evidence)}</p>`}
+                ${task.manual ? '<p class="todo-manual-note">手动添加</p>' : `${isMine ? "" : `<p>负责人：${task.personal === true ? "我（已确认）" : escapeHtml(task.assignee)}</p>`}<p class="todo-evidence"><strong>来源片段｜${escapeHtml(task.source)}</strong><br>${escapeHtml(task.evidence)}</p>${sourceAudioUrl && sourceSeconds(task.source) !== null ? `<button class="btn" type="button" data-play-source="${escapeHtml(task.source)}">播放来源</button>` : ""}`}
                 ${isEditing ? `<div class="todo-edit">
                   <label>任务<input class="input" data-todo-field="title" value="${escapeHtml(task.task)}" required /></label>
-                  <label>截止时间<input class="input" data-todo-field="deadline" value="${hasDeadline ? escapeHtml(task.deadline) : ""}" placeholder="例如：周五 18:00" /></label>
-                </div>` : ""}
+                  <label>具体截止时间<input class="input" type="datetime-local" data-todo-field="deadline" value="${escapeHtml(taskDueAt(task) || suggestedDueAt(task.deadline))}" /></label>
+                </div>${!taskDueAt(task) && suggestedDueAt(task.deadline) ? '<p class="panel-note">已根据原文预填建议时间，请核对后保存。</p>' : ""}` : ""}
                 <div class="todo-actions">
                   ${isEditing
                     ? `<button class="btn btn-primary" type="button" data-task-action="save-todo" data-task-key="${escapeHtml(key)}">保存</button><button class="btn" type="button" data-task-action="cancel-todo" data-task-key="${escapeHtml(key)}">取消</button>`
-                    : `${!isMine && task.personal !== true ? `<button class="btn btn-claim" type="button" data-task-action="claim" data-task-key="${escapeHtml(key)}">确认是我的任务</button>` : ""}<button class="btn" type="button" data-task-action="edit-todo" data-task-key="${escapeHtml(key)}">${hasDeadline ? "修改任务" : "补充时间或修改任务"}</button>${task.manual ? `<button class="btn" type="button" data-task-action="delete-todo" data-task-key="${escapeHtml(key)}">删除</button>` : ""}`}
+                    : `${!isMine && task.personal !== true ? `<button class="btn btn-claim" type="button" data-task-action="claim" data-task-key="${escapeHtml(key)}">确认是我的任务</button>` : ""}<button class="btn" type="button" data-task-action="edit-todo" data-task-key="${escapeHtml(key)}">${hasDeadline ? "修改任务" : "补充时间或修改任务"}</button>${isMine && taskDueAt(task) ? `<button class="btn" type="button" data-task-action="calendar" data-task-key="${escapeHtml(key)}">加入日历</button>` : ""}${task.manual ? `<button class="btn" type="button" data-task-action="delete-todo" data-task-key="${escapeHtml(key)}">删除</button>` : ""}`}
                 </div>
               </div>` : ""}
             </li>`;
@@ -2661,6 +2887,8 @@
           const mine = [...manualTodos.map(manualTodoAsTask), ...(result?.my_tasks || [])];
           content.innerHTML = `
             ${todoNotice ? `<p class="panel-note" role="status">${escapeHtml(todoNotice)}</p>` : ""}
+            ${reminderText(mine) ? `<p class="due-reminder" role="status">${escapeHtml(reminderText(mine))}</p>` : ""}
+            ${renderMarkerInsights()}
             <section class="todo-section"><h3 class="todo-heading">我的任务清单 <span class="todo-count">${mine.length}</span></h3>${todoList(mine, true)}</section>
             <section class="todo-section"><h3 class="todo-heading">模糊任务清单 <span class="todo-count">${reviewTasks.length}</span></h3>${todoList(reviewTasks, false)}</section>
           `;
@@ -2709,6 +2937,8 @@
           document.querySelector("#transcript").value = await response.text();
           setInputMode("text");
           result = null;
+          currentRecordCreatedAt = "";
+          setSourceAudio(null);
           focusResult = null;
           focusTrace = null;
           focusMessage = "";
@@ -2779,7 +3009,7 @@
         analyzeBtn.disabled = true;
         analyzeBtn.textContent = "分析中...";
         pauseBtn.hidden = false;
-        generationStatus.textContent = "正在生成，可暂停后修改输入。";
+        generationStatus.textContent = inputMode === "audio" ? "正在上传录音并转写…" : "正在分析文字并提取任务…";
 
         if (analysisUser && !selectedFolderId) {
           try {
@@ -2792,38 +3022,59 @@
         const submittedMode = inputMode;
         const formData = new FormData();
         const audio = submittedMode === "audio" ? audioInput.files[0] : null;
-        if (audio) formData.append("audio", audio);
-        formData.append("transcript", submittedMode === "text" ? transcriptInput.value : "");
         formData.append("current_user", analysisUser);
         formData.append("confirmed_speaker", confirmedSpeaker.value);
         formData.append("markers", JSON.stringify(markers));
         formData.append("folder_id", selectedFolderId);
 
         try {
+          let transcriptText = transcriptInput.value;
+          if (audio) {
+            const uploadData = new FormData();
+            uploadData.append("audio", audio);
+            const transcriptionResponse = await fetch("/api/meetings/transcribe", {
+              method: "POST", body: uploadData, signal: analysisController.signal,
+            });
+            if (!transcriptionResponse.ok) {
+              const body = await transcriptionResponse.json().catch(() => ({}));
+              throw new Error(typeof body.detail === "string" ? body.detail : "录音转写失败，请重试。");
+            }
+            transcriptText = (await transcriptionResponse.json()).transcript;
+            transcriptInput.value = transcriptText;
+            updateSpeakerOptions();
+            generationStatus.textContent = "转写完成，正在分析并提取任务…";
+          }
+          formData.append("transcript", transcriptText);
           const response = await fetch("/api/meetings/analyze", {
             method: "POST",
             body: formData,
             signal: analysisController.signal,
           });
-          if (!response.ok) throw new Error("内容分析失败");
+          if (!response.ok) {
+            const body = await response.json().catch(() => ({}));
+            throw new Error(typeof body.detail === "string" ? body.detail : "内容分析失败，请稍后重试。");
+          }
           result = await response.json();
+          setSourceAudio(audio || null);
           focusResult = null;
           focusTrace = null;
           focusMessage = "";
           resultUser = analysisUser;
           currentMeetingId = "";
+          currentRecordCreatedAt = "";
           if (submittedMode === "audio") transcriptInput.value = (result.transcript || []).join("\n");
           saveBtn.disabled = false;
           saveBtn.textContent = "保存到文件夹";
           activateTab("task-list");
           render();
-          generationStatus.textContent = result.identity_confirmed ? "已按确认的说话人生成任务。" : "未确认本人说话人；请到任务清单认领候选任务。";
+          const modeLabel = result.demo_mode ? "本地规则分析，仅供核对。" : "AI 分析完成。";
+          generationStatus.textContent = modeLabel + (result.identity_confirmed ? "已按确认的说话人生成任务。" : "未确认本人说话人；请到任务清单认领候选任务。");
           resultStatus.textContent = generationStatus.textContent;
         } catch (error) {
           if (error.name === "AbortError") {
-            generationStatus.textContent = "已暂停生成。修改输入后可重新生成。";
+            generationStatus.textContent = "已停止等待，可修改输入后重试；已发送的请求可能仍在服务器处理。";
           } else {
-            generationStatus.textContent = "生成失败，请检查输入或网络后重试。";
+            generationStatus.textContent = error.message || "生成失败，请检查输入或网络后重试。";
           }
         } finally {
           analyzeBtn.disabled = false;
@@ -3039,14 +3290,15 @@
       todoForm.addEventListener("submit", async (event) => {
         event.preventDefault();
         const title = document.querySelector("#todoTitle").value.trim();
-        const deadline = document.querySelector("#todoDeadline").value.trim();
+        const dueAt = document.querySelector("#todoDeadline").value.trim();
+        const deadline = dueAt ? dueAt.replace("T", " ") : "";
         if (!title) return;
         const submitButton = todoForm.querySelector('[type="submit"]');
         submitButton.disabled = true;
         try {
           const response = await fetch("/api/meetings/todos", {
             method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ current_user: currentUser(), title, deadline }),
+            body: JSON.stringify({ current_user: currentUser(), title, deadline, due_at: dueAt }),
           });
           if (!response.ok) throw new Error("保存失败");
           manualTodos.unshift(await response.json());
@@ -3065,12 +3317,15 @@
           const response = await fetch(`/api/meetings/history/${meetingId}?current_user=${encodeURIComponent(currentUser())}`);
           if (!response.ok) throw new Error("读取失败");
           const record = await response.json();
+          setSourceAudio(null, record.audio_available ? record.id : "");
+          currentAudioName = record.audio_name || "";
           result = record.analysis;
           focusResult = null;
           focusTrace = null;
           focusMessage = "";
           resultUser = record.current_user;
           currentMeetingId = record.id;
+          currentRecordCreatedAt = record.created_at || "";
           selectedFolderId = record.folder_id || selectedFolderId;
           folderSelectionExplicit = true;
           document.querySelector("#user").value = record.current_user;
@@ -3101,6 +3356,20 @@
       });
 
       content.addEventListener("click", (event) => {
+        const markerAction = event.target.closest("[data-marker-action]");
+        if (markerAction) {
+          const time = markerAction.dataset.markerTime;
+          if (markerAction.dataset.markerAction === "play") playSource(time);
+          if (markerAction.dataset.markerAction === "todo") void addMarkerActionToTasks(time);
+          if (markerAction.dataset.markerAction === "save") toggleMarkerSaved(time);
+          if (markerAction.dataset.markerAction === "share") void shareMarkerInsight(time);
+          return;
+        }
+        const playButton = event.target.closest("[data-play-source]");
+        if (playButton) {
+          playSource(playButton.dataset.playSource);
+          return;
+        }
         if (event.target.closest("[data-todo-add]")) {
           openTodoDialog();
           return;
@@ -3264,6 +3533,14 @@
         const action = button.dataset.taskAction;
         const key = button.dataset.taskKey;
 
+        if (action === "calendar") {
+          const task = key.startsWith("manual:")
+            ? manualTodos.find((item) => item.id === key.slice(7))
+            : (result?.all_tasks || []).find((item) => taskKey(item) === key);
+          if (task?.due_at) downloadCalendar({ task: task.title || task.task, due_at: task.due_at });
+          return;
+        }
+
         if (action === "claim") {
           setTaskPersonal(key, true);
           return;
@@ -3281,17 +3558,16 @@
           const deadlineInput = detail?.querySelector('[data-todo-field="deadline"]');
           if (!titleInput || !deadlineInput) return;
           const title = titleInput.value.trim();
-          const deadline = deadlineInput.value.trim();
+          const dueAt = deadlineInput.value.trim();
+          const deadline = dueAt ? dueAt.replace("T", " ") : "";
           if (!title) {
             titleInput.reportValidity();
             return;
           }
-          deadlineInput.setCustomValidity(deadline && !hasSpecificDeadline(deadline) ? "请输入具体日期或时间，例如周五 18:00" : "");
-          if (!deadlineInput.reportValidity()) return;
           if (key.startsWith("manual:")) {
             const todo = manualTodos.find((item) => item.id === key.slice(7));
             if (!todo) return;
-            void updateManualTodo(todo, { title, deadline }).then(() => {
+            void updateManualTodo(todo, { title, deadline, due_at: dueAt }).then(() => {
               editingTodoKey = "";
               todoNotice = "";
               render();
@@ -3301,7 +3577,7 @@
             });
             return;
           }
-          updateTaskFields(key, { task: title, deadline: deadline || "待确认" });
+          updateTaskFields(key, { task: title, deadline: deadline || "待确认", due_at: dueAt });
           return;
         }
 

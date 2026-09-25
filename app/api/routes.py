@@ -1,4 +1,5 @@
 import json
+import mimetypes
 import re
 
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
@@ -21,9 +22,11 @@ from app.services.personal_memory import (
     update_folder,
     update_personal_todo,
     list_meetings,
+    meeting_audio_path,
     personal_context,
     personalization,
     save_meeting,
+    store_meeting_audio,
     set_folder_image_keywords,
     set_folder_image_status,
     suggest_folder,
@@ -32,14 +35,31 @@ from app.services.folder_images import folder_image_path, generate_folder_image
 from app.services.meeting_analyzer import (
     analyze_personal_focus,
     analyze_transcript_with_llm,
-    build_local_transcript_analysis,
-    build_demo_analysis,
     has_openai_key,
     transcribe_audio_bytes,
 )
 
 
 router = APIRouter()
+
+
+async def _transcribe_upload(audio: UploadFile) -> str:
+    if not has_openai_key():
+        raise HTTPException(status_code=503, detail="录音转写暂不可用：请先配置语音 API Key，或改用文字转写。")
+    audio_bytes = await audio.read(25 * 1024 * 1024 + 1)
+    if not audio_bytes:
+        raise HTTPException(status_code=422, detail="录音文件为空，请重新选择。")
+    if len(audio_bytes) > 25 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="录音文件超过 25 MB，请压缩或分段后重试。")
+    if not (audio.filename or "").lower().endswith((".mp3", ".mp4", ".m4a", ".wav", ".webm", ".mpeg", ".mpga", ".ogg", ".flac")):
+        raise HTTPException(status_code=422, detail="不支持这个录音格式，请选择常见音频文件。")
+    try:
+        text = transcribe_audio_bytes(audio_bytes, filename=audio.filename or "meeting.mp3", content_type=audio.content_type)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="录音转写失败，请检查文件或网络后重试。") from exc
+    if not text.strip():
+        raise HTTPException(status_code=502, detail="没有识别出录音内容，请检查文件后重试。")
+    return text
 
 
 @router.get("/health")
@@ -158,6 +178,26 @@ def meeting_history_item(meeting_id: str, current_user: str = "") -> dict:
     return record
 
 
+@router.post("/meetings/history/{meeting_id}/audio")
+async def attach_meeting_audio(meeting_id: str, current_user: str = Form(), audio: UploadFile = File()) -> dict:
+    audio_bytes = await audio.read()
+    try:
+        store_meeting_audio(meeting_id, current_user, audio.filename or "", audio_bytes)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {"audio_available": True}
+
+
+@router.get("/meetings/history/{meeting_id}/audio")
+def get_meeting_audio(meeting_id: str, current_user: str = "") -> FileResponse:
+    if not get_meeting(meeting_id, current_user):
+        raise HTTPException(status_code=404, detail="没有找到这条本地记录")
+    audio = meeting_audio_path(meeting_id)
+    if not audio:
+        raise HTTPException(status_code=404, detail="这条记录没有保存的原音频")
+    return FileResponse(audio, media_type=mimetypes.guess_type(audio.name)[0] or "application/octet-stream")
+
+
 @router.post("/meetings/history")
 def create_meeting_history(payload: MeetingHistoryPayload) -> dict:
     return save_meeting(payload.model_dump())
@@ -211,6 +251,11 @@ def analyze_focus(
     )
 
 
+@router.post("/meetings/transcribe")
+async def transcribe_meeting(audio: UploadFile = File()) -> dict[str, str]:
+    return {"transcript": await _transcribe_upload(audio)}
+
+
 @router.post("/meetings/analyze", response_model=MeetingAnalysis)
 async def analyze_meeting(
     audio: UploadFile | None = File(default=None),
@@ -257,29 +302,7 @@ async def analyze_meeting(
     if transcript.strip():
         return analyze_with_memory(transcript)
 
-    if audio and has_openai_key():
-        audio_bytes = await audio.read()
-        try:
-            transcribed_text = transcribe_audio_bytes(
-                audio_bytes=audio_bytes,
-                filename=audio.filename or "meeting.mp3",
-                content_type=audio.content_type,
-            )
-        except Exception as exc:
-            analysis = build_local_transcript_analysis(
-                transcript=f"录音文件：{audio.filename or 'meeting'}",
-                current_user="",
-                markers=parsed_markers,
-                warning=f"OpenAI 语音转写失败，已自动切回本地解析：{exc.__class__.__name__}",
-            )
-            analysis.identity_confirmed = False
-            return analysis
-        return analyze_with_memory(transcribed_text)
+    if audio:
+        return analyze_with_memory(await _transcribe_upload(audio))
 
-    analysis = build_demo_analysis(parsed_markers)
-    analysis.identity_confirmed = False
-    analysis.my_tasks = []
-    for task in analysis.all_tasks:
-        if task.assignee == "我":
-            task.assignee = "待确认"
-    return analysis
+    raise HTTPException(status_code=422, detail="请上传录音，或粘贴文字转写。")

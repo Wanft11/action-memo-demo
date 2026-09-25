@@ -31,6 +31,19 @@ class MeetingFocusSource(BaseModel):
     reason: str = ""
 
 
+class MeetingMarkerInsight(BaseModel):
+    marker_time: str
+    window_start: str
+    window_end: str
+    summary: str
+    personal_action: str = ""
+    deadline: str = "待确认"
+    conditions: list[str] = []
+    risks: list[str] = []
+    evidence: list[MeetingFocusSource] = []
+    saved: bool = False
+
+
 class MeetingFocusAnalysis(BaseModel):
     query: str
     title: str
@@ -49,6 +62,7 @@ class MeetingAnalysis(BaseModel):
     questions: list[MeetingInsight] = []
     evidence_notes: list[MeetingInsight] = []
     marked_moments: list[MeetingMarker]
+    marker_insights: list[MeetingMarkerInsight] = []
     transcript: list[str]
     personalization_notes: list[str] = []
     demo_mode: bool = True

@@ -34,6 +34,38 @@ def payload(tasks):
 
 
 class PersonalMemoryTests(unittest.TestCase):
+    def test_saved_audio_can_be_replayed_and_is_deleted_with_record(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            data_dir = Path(temp_dir) / ".action-memo"
+            with patch("app.services.personal_memory.DATA_DIR", data_dir), patch(
+                "app.services.personal_memory.DATABASE_PATH", data_dir / "action_memo.db"
+            ):
+                saved = save_meeting(payload([]))
+                client = TestClient(app)
+                url = f"/api/meetings/history/{saved['id']}/audio"
+                self.assertEqual(client.get(url, params={"current_user": "小万"}).status_code, 404)
+                attached = client.post(url, data={"current_user": "小万"}, files={"audio": ("sample.mp3", b"ID3-test", "audio/mpeg")})
+                self.assertEqual(attached.status_code, 200)
+                self.assertTrue(get_meeting(saved["id"], "小万")["audio_available"])
+                self.assertEqual(client.get(url, params={"current_user": "小万"}).content, b"ID3-test")
+                self.assertEqual(client.get(url, params={"current_user": "别人"}).status_code, 404)
+                self.assertEqual(client.delete(f"/api/meetings/history/{saved['id']}", params={"current_user": "小万"}).status_code, 200)
+                self.assertFalse(list((data_dir / "audio").glob("*")))
+
+    def test_history_counts_match_task_list_rules(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            data_dir = Path(temp_dir) / ".action-memo"
+            with patch("app.services.personal_memory.DATA_DIR", data_dir), patch(
+                "app.services.personal_memory.DATABASE_PATH", data_dir / "action_memo.db"
+            ):
+                save_meeting(payload([
+                    {"task": "整理脚本", "assignee": "小万", "deadline": "明天下午", "confidence": 0.82, "status": "待确认"},
+                    {"task": "研究竞品", "assignee": "小万", "deadline": "待确认", "confidence": 0.72, "status": "待确认"},
+                ]))
+                item = list_meetings("小万")[0]
+                self.assertEqual(item["my_task_count"], 0)
+                self.assertEqual(item["review_task_count"], 1)
+
     def test_deleting_a_record_requires_its_owner_and_removes_feedback(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             data_dir = Path(temp_dir) / ".action-memo"
@@ -142,7 +174,7 @@ class PersonalMemoryTests(unittest.TestCase):
                 "app.services.personal_memory.DATABASE_PATH", database_path
             ):
                 saved = save_meeting(payload([
-                    {"task": "画出产品流程", "assignee": "小万", "personal": True, "status": "待确认"},
+                    {"task": "画出产品流程", "assignee": "小万", "personal": True, "status": "待确认", "deadline": "明天"},
                     {"task": "整理访谈证据", "assignee": "小林", "personal": False, "status": "待确认"},
                 ]))
 
@@ -150,6 +182,7 @@ class PersonalMemoryTests(unittest.TestCase):
                 self.assertEqual(len(history), 1)
                 self.assertEqual(history[0]["task_count"], 2)
                 self.assertEqual(history[0]["my_task_count"], 1)
+                self.assertEqual(history[0]["review_task_count"], 0)
                 self.assertEqual(history[0]["confirmed_task_count"], 0)
                 self.assertEqual(get_meeting(saved["id"], "小万")["audio_name"], "demo.m4a")
 

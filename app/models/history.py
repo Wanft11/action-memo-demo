@@ -1,6 +1,7 @@
 from typing import Annotated, Any
+from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class MeetingHistoryPayload(BaseModel):
@@ -41,4 +42,12 @@ class PersonalTodoPayload(BaseModel):
     current_user: str = Field(min_length=1, max_length=80)
     title: str = Field(min_length=1, max_length=200)
     deadline: str = Field(default="", max_length=80)
+    due_at: str = Field(default="", max_length=32)
     completed: bool = False
+
+    @field_validator("due_at")
+    @classmethod
+    def validate_due_at(cls, value: str) -> str:
+        if value:
+            datetime.fromisoformat(value)
+        return value

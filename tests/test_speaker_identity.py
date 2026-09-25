@@ -78,13 +78,11 @@ class SpeakerIdentityTests(unittest.TestCase):
         self.assertFalse(response.json()["identity_confirmed"])
         self.assertEqual(response.json()["my_tasks"], [])
 
-    def test_demo_without_audio_or_transcript_does_not_claim_identity(self):
+    def test_missing_audio_and_transcript_is_rejected(self):
         response = self.client.post("/api/meetings/analyze", data={"current_user": "小万"})
 
-        self.assertEqual(response.status_code, 200)
-        self.assertFalse(response.json()["identity_confirmed"])
-        self.assertEqual(response.json()["my_tasks"], [])
-        self.assertTrue(all(task["assignee"] != "我" for task in response.json()["all_tasks"]))
+        self.assertEqual(response.status_code, 422)
+        self.assertIn("请上传录音", response.json()["detail"])
 
 
 if __name__ == "__main__":

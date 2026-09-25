@@ -11,6 +11,7 @@ from app.models.meeting import (
     MeetingFocusSource,
     MeetingInsight,
     MeetingMarker,
+    MeetingMarkerInsight,
     MeetingTask,
 )
 
@@ -73,6 +74,8 @@ NON_ACTION_PATTERNS = [
 ]
 
 DEADLINE_PATTERNS = [
+    # Prefer the full date-and-time phrase over a broad date such as "今天".
+    r"(?:今天|明天|后天|周[一二三四五六日天])?(?:上午|中午|下午|晚上)?(?:\d{1,2}|[一二三四五六七八九十]{1,3})点(?:半|[：:]\d{1,2})?(?:之前|前)?",
     r"今晚",
     r"今天(?:之内|下班前|晚上)?",
     r"明天(?:上午|下午|晚上|之前|前)?",
@@ -82,6 +85,7 @@ DEADLINE_PATTERNS = [
     r"周[一二三四五六日天](?:之前|前)?",
     r"\d{1,2}[月/-]\d{1,2}[日号]?(?:之前|前)?",
     r"\d{1,2}[点:：]\d{0,2}(?:之前|前)?",
+    r"[一二三四五六七八九十]{1,3}点半(?:之前|前)?",
 ]
 
 
@@ -335,6 +339,115 @@ def transcript_turns(lines: list[str]) -> list[dict]:
     return turns
 
 
+def timestamp_to_seconds(value: str) -> int | None:
+    match = re.fullmatch(r"(\d{1,2}):(\d{2})(?::(\d{2}))?", str(value or ""))
+    if not match:
+        return None
+    first, second, third = (int(part or 0) for part in match.groups())
+    return first * 3600 + second * 60 + third if match.group(3) else first * 60 + second
+
+
+def seconds_to_timestamp(value: int) -> str:
+    value = max(0, value)
+    if value >= 3600:
+        return f"{value // 3600:02d}:{(value % 3600) // 60:02d}:{value % 60:02d}"
+    return f"{value // 60:02d}:{value % 60:02d}"
+
+
+def marker_window_turns(marker: MeetingMarker, turns: list[dict], radius: int = 45) -> tuple[str, str, list[dict]]:
+    center = timestamp_to_seconds(marker.time)
+    if center is None:
+        return marker.time, marker.time, [turn for turn in turns if turn["source"] == marker.time][:5]
+    selected = []
+    for turn in turns:
+        turn_time = timestamp_to_seconds(turn["source"])
+        if turn_time is not None and abs(turn_time - center) <= radius:
+            selected.append(turn)
+    return seconds_to_timestamp(center - radius), seconds_to_timestamp(center + radius), selected
+
+
+def marker_insights_from_transcript(
+    transcript_lines: list[str],
+    current_user: str,
+    markers: list[MeetingMarker],
+    tasks: list[dict],
+) -> list[MeetingMarkerInsight]:
+    turns = transcript_turns(transcript_lines)
+    insights = []
+    for marker in markers:
+        window_start, window_end, context = marker_window_turns(marker, turns)
+        if not context:
+            continue
+        center = timestamp_to_seconds(marker.time)
+        context_by_distance = sorted(
+            context,
+            key=lambda turn: abs((timestamp_to_seconds(turn["source"]) or 0) - (center or 0)),
+        )
+        context_sources = {turn["source"] for turn in context}
+        nearby_tasks = sorted(
+            (task for task in tasks if task.get("source") in context_sources),
+            key=lambda task: abs((timestamp_to_seconds(str(task.get("source") or "")) or 0) - (center or 0)),
+        )
+        own_action = None
+        deadline_context = "\n".join(
+            turn["text"] for turn in context
+            if center is None or (timestamp_to_seconds(turn["source"]) or center) <= center
+        )
+        for turn in context_by_distance:
+            if turn["speaker"] != current_user:
+                continue
+            title = concise_task_title(turn["text"], "\n".join(item["text"] for item in context))
+            if is_specific_task_title(title):
+                own_action = {"task": title, "deadline": extract_deadline(deadline_context)}
+                break
+        personal_task = next((task for task in nearby_tasks if task_belongs_to_current_user(task, current_user)), None)
+        if not personal_task:
+            personal_task = next((task for task in nearby_tasks if current_user and current_user in str(task.get("assignee") or "")), None)
+        conditions = [
+            f"{turn['speaker']}：{turn['text']}".strip("：")
+            for turn in context
+            if re.search(r"如果|前提|确认后|通过后|取决于|等.+后", turn["text"])
+        ][:2]
+        risks = [
+            f"{turn['speaker']}：{turn['text']}".strip("：")
+            for turn in context
+            if re.search(r"风险|担心|问题|不确定|来不及|可能", turn["text"])
+        ][:2]
+        evidence = [
+            MeetingFocusSource(
+                source=turn["source"],
+                evidence=f"{turn['speaker']}：{turn['text']}" if turn["speaker"] else turn["text"],
+                reason="录音豆重点附近的原话",
+            )
+            for turn in context_by_distance[:3]
+        ]
+        headline = marker.note or (context[0]["text"][:28] if context else "用户标记的重点片段")
+        resolved_action = own_action["task"] if own_action else personal_task["task"] if personal_task else ""
+        resolved_deadline = own_action["deadline"] if own_action else personal_task.get("deadline", "待确认") if personal_task else "待确认"
+        if resolved_action:
+            summary = f"这段明确了你的行动：{resolved_action}"
+            if resolved_deadline and resolved_deadline != "待确认":
+                summary += f"；时间是{resolved_deadline}。"
+            else:
+                summary += "；具体时间仍需确认。"
+        elif conditions or risks:
+            summary = f"这段围绕“{headline}”讨论，包含需要进一步确认的条件或风险。"
+        else:
+            summary = f"这段围绕“{headline}”展开，可作为后续回看依据。"
+        insights.append(MeetingMarkerInsight(
+            marker_time=marker.time,
+            window_start=window_start,
+            window_end=window_end,
+            summary=summary,
+            personal_action=resolved_action,
+            deadline=resolved_deadline,
+            conditions=conditions,
+            risks=risks,
+            evidence=evidence,
+        ))
+    return insights
+
+
 def matching_turns(evidence: str, lines: list[str]) -> list[dict]:
     key = normalize_text_for_dedupe(evidence)
     if len(key) < 6:
@@ -492,6 +605,7 @@ def build_local_transcript_analysis(
         risks.insert(0, warning)
 
     task_questions = build_task_questions(tasks)
+    marker_insights = marker_insights_from_transcript(lines, current_user, markers or [], tasks)
 
     return MeetingAnalysis(
         meeting_title=extract_meeting_title(lines) or "文字交流记录",
@@ -515,6 +629,7 @@ def build_local_transcript_analysis(
             if any(keyword in line for keyword in ["因为", "支持", "不是", "而是", "用户", "需求", "背景"])
         ][:5],
         marked_moments=markers or [],
+        marker_insights=marker_insights,
         transcript=lines,
         demo_mode=True,
     )
@@ -541,6 +656,7 @@ def normalize_llm_analysis(data: dict, transcript: str, current_user: str, marke
         "questions": data.get("questions") or data.get("open_questions") or [],
         "evidence_notes": data.get("evidence_notes") or data.get("background_evidence") or data.get("background") or [],
         "marked_moments": data.get("marked_moments") or [marker.model_dump() for marker in markers or []],
+        "marker_insights": data.get("marker_insights") or [],
         "transcript": transcript_lines,
         "demo_mode": False,
     }
@@ -609,6 +725,47 @@ def normalize_llm_analysis(data: dict, transcript: str, current_user: str, marke
                 }
             )
     normalized["marked_moments"] = normalized_markers
+
+    canonical_markers = [MeetingMarker.model_validate(marker) for marker in normalized_markers]
+    fallback_marker_insights = marker_insights_from_transcript(
+        transcript_lines,
+        current_user,
+        canonical_markers,
+        normalized["all_tasks"] if isinstance(normalized["all_tasks"], list) else [],
+    )
+    insights_by_time = {item.marker_time: item for item in fallback_marker_insights}
+    normalized_marker_insights = []
+    for raw in normalized["marker_insights"]:
+        if not isinstance(raw, dict):
+            continue
+        marker_time = str(raw.get("marker_time") or raw.get("time") or "")
+        fallback = insights_by_time.get(marker_time)
+        if not fallback:
+            continue
+        evidence_ids = raw.get("evidence_ids") or []
+        cited = []
+        if isinstance(evidence_ids, list):
+            for citation in evidence_ids:
+                match = re.fullmatch(r"T(\d+)", str(citation))
+                if match and 1 <= int(match.group(1)) <= len(turns):
+                    turn = turns[int(match.group(1)) - 1]
+                    cited.append(MeetingFocusSource(
+                        source=turn["source"],
+                        evidence=f"{turn['speaker']}：{turn['text']}" if turn["speaker"] else turn["text"],
+                        reason="模型引用的重点依据",
+                    ))
+        normalized_marker_insights.append(MeetingMarkerInsight(
+            marker_time=marker_time,
+            window_start=fallback.window_start,
+            window_end=fallback.window_end,
+            summary=str(raw.get("summary") or fallback.summary),
+            personal_action=str(raw.get("personal_action") or fallback.personal_action),
+            deadline=str(raw.get("deadline") or fallback.deadline),
+            conditions=[str(item) for item in raw.get("conditions", []) if str(item).strip()][:2] or fallback.conditions,
+            risks=[str(item) for item in raw.get("risks", []) if str(item).strip()][:2] or fallback.risks,
+            evidence=cited[:3] or fallback.evidence,
+        ).model_dump())
+    normalized["marker_insights"] = normalized_marker_insights or [item.model_dump() for item in fallback_marker_insights]
 
     def cited_evidence(task: dict) -> str:
         citations = task.get("evidence_ids") or []
@@ -687,6 +844,15 @@ def normalize_llm_analysis(data: dict, transcript: str, current_user: str, marke
     normalized["my_tasks"] = [
         task for task in normalized["all_tasks"] if task_belongs_to_current_user(task, current_user)
     ]
+    task_backed_markers = marker_insights_from_transcript(
+        transcript_lines, current_user, canonical_markers, normalized["all_tasks"]
+    )
+    task_backed_by_time = {item.marker_time: item for item in task_backed_markers}
+    for insight in normalized["marker_insights"]:
+        fallback = task_backed_by_time.get(insight["marker_time"])
+        if fallback and not insight.get("personal_action"):
+            insight["personal_action"] = fallback.personal_action
+            insight["deadline"] = fallback.deadline
     normalized["questions"] = (normalized["questions"] + build_task_questions(normalized["all_tasks"]))[:5]
     return normalized
 
@@ -704,6 +870,25 @@ def focus_similarity(query: str, text: str) -> float:
     if not query_grams or not text_grams:
         return 0.0
     return len(query_grams & text_grams) / len(query_grams)
+
+
+def focus_has_evidence(query: str, turns: list[dict], indices: list[int]) -> bool:
+    # Generic prompts have no stable topic to retrieve by local word overlap.
+    topic = re.sub(r"我们|我|你|接下来|之后|需要|应该|准备|知道|关注|什么时候|有没有|有哪些|有什么|什么|哪些|怎么|如何|是否|要|做|的|吗|呢|？|\?", "", query)
+    topic = normalize_text_for_dedupe(topic)
+    if len(topic) < 2:
+        return False
+    return any(focus_similarity(topic, turns[index]["text"]) >= 0.28 for index in indices)
+
+
+def empty_focus_analysis(focus_query: str) -> MeetingFocusAnalysis:
+    return MeetingFocusAnalysis(
+        query=focus_query,
+        title=f"关于“{focus_query}”的个人重点",
+        answer="转写中没有找到足够直接的依据，暂不能回答这个问题。可以换个更具体的关键词再试。",
+        sources=[],
+        demo_mode=True,
+    )
 
 
 def focus_source(turn: dict, reason: str = "") -> MeetingFocusSource:
@@ -738,14 +923,8 @@ def build_local_focus_analysis(
         focus_source(turn, "说明问题背景" if index == 0 else "说明直接回应或承诺")
         for index, turn in enumerate(selected)
     ]
-    if not sources:
-        return MeetingFocusAnalysis(
-            query=focus_query,
-            title=f"关于“{focus_query}”的个人重点",
-            answer="转写内容中暂时没有可用于回答该重点的信息。",
-            sources=[],
-            demo_mode=True,
-        )
+    if not sources or not focus_has_evidence(focus_query, turns, selected_indices[:2]):
+        return empty_focus_analysis(focus_query)
 
     answer_turn = selected[-1]
     speaker = f"{answer_turn['speaker']}表示：" if answer_turn["speaker"] else "原文中明确提到："
@@ -784,8 +963,8 @@ def normalize_focus_analysis(
             seen_indices.add(index)
             sources.append(focus_source(turns[index], reason))
 
-    if not sources:
-        return build_local_focus_analysis(transcript, "", focus_query)
+    if not sources or not focus_has_evidence(focus_query, turns, list(seen_indices)):
+        return empty_focus_analysis(focus_query)
 
     return MeetingFocusAnalysis(
         query=focus_query,
@@ -880,12 +1059,13 @@ def analyze_transcript_with_llm(
 {annotated_transcript}
 
 请只输出 JSON，字段包括：
-meeting_title, summary, decisions, all_tasks, risks, questions, evidence_notes。
+meeting_title, summary, decisions, all_tasks, risks, questions, evidence_notes, marker_insights。
 all_tasks 中每个任务包含 task, assignee, deadline, evidence_ids, status, confidence。
 evidence_ids 是原文编号列表，例如 ["T012", "T014"]。程序会根据编号直接展示原句、说话人和时间，任务不要自行重写 evidence 或 source。
 只生成一份 all_tasks，程序会从中筛选当前用户的待办。不要复述完整 transcript。
 questions 中每项包含 title, source, evidence。
 evidence_notes 中每项包含 title, source, evidence。
+marker_insights 中每项对应一个硬件标记，包含 marker_time, summary, personal_action, deadline, conditions, risks, evidence_ids。marker_time 必须使用给出的标记时间；evidence_ids 只引用该标记前后约 45 秒内的原话。personal_action 只有存在明确属于当前用户的行动时才填写，否则为空字符串。conditions 和 risks 各最多 2 条，若原话没有则输出空数组。
 
 任务抽取规则：
 1. 只提取明确需要执行的行动，例如“谁负责做什么”“谁在什么时候前完成什么”。
@@ -911,6 +1091,7 @@ evidence_notes 中每项包含 title, source, evidence。
 21. 个人工作画像只能帮助判断没有明确归属的模糊候选任务；原文已经明确负责人、明确排除或明确完成的事项，必须以原文为准。
 22. task 不能使用“跟进一下”“先整理”“处理这个”“推进相关内容”“确认一下”等模糊表述。若无法同时确定动作和对象，就不要生成任务；可把不确定性放入 questions。
 23. 录音豆硬件重点标记表示用户主动关注该时间附近的内容。优先审阅对应片段及前后语境，提炼任务、决定或重要信息；但标记本身不是任务证据，仍必须满足其他任务抽取规则。
+24. 每个硬件标记都生成一条 marker_insights。summary 只说明这段重点谈清了什么，不要把背景讨论夸大成结论或任务。
 
 输出前必须逐项复核：
 - 先收集所有分工、承诺和临时事项，再合并同一行动的多次提及。不能只看最后一句或最后总结。
