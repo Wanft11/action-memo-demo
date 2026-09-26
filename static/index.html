@@ -1671,6 +1671,8 @@
       let homePreviewAnalysis = null;
       let homePreviewRecordId = "";
       let manualTodos = [];
+      let savedTasks = [];
+      let savedTasksLoading = false;
       let todoNotice = "";
 
       const testSamples = [
@@ -1771,6 +1773,10 @@
         resultUser = "";
         currentMeetingId = "";
         currentRecordCreatedAt = "";
+        selectedFolderId = folders.find((folder) => folder.is_default)?.id || "";
+        folderSelectionExplicit = false;
+        focusFolderId = "";
+        focusQuery = "";
         focusResult = null;
         focusTrace = null;
         focusMessage = "";
@@ -1789,6 +1795,7 @@
         resultStatus.textContent = "";
         saveBtn.disabled = true;
         saveBtn.textContent = "保存到文件夹";
+        renderFolderSelect();
       }
 
       document.querySelectorAll("[data-input-mode]").forEach((button) => {
@@ -1832,6 +1839,8 @@
 
       function taskKey(task) {
         if (task.manual) return `manual:${task.id}`;
+        if (task.record_id?.startsWith("current:")) return `${task.task}|${task.assignee}|${task.source}`;
+        if (task.record_id) return `saved:${task.record_id}:${task.record_index}`;
         return `${task.task}|${task.assignee}|${task.source}`;
       }
 
@@ -1988,6 +1997,52 @@
         render();
       }
 
+      async function loadSavedTasks() {
+        const user = currentUser();
+        if (!user) { savedTasks = []; render(); return; }
+        savedTasksLoading = true;
+        try {
+          const response = await fetch(`/api/meetings/tasks?current_user=${encodeURIComponent(user)}`);
+          if (!response.ok) throw new Error("加载失败");
+          const tasks = await response.json();
+          if (currentUser() === user) savedTasks = tasks;
+        } catch {
+          todoNotice = "已保存记录中的任务暂时无法加载，请稍后重试。";
+        } finally {
+          savedTasksLoading = false;
+          render();
+        }
+      }
+
+      function savedTaskIsMine(task) {
+        if (task.personal === true) return true;
+        if (task.personal === false || ["已取消", "已忽略"].includes(task.status) || task.identity_confirmed === false) return false;
+        const aliases = new Set(task.identity_aliases || []);
+        const matches = String(task.assignee || "").split(/[、，,和与及\s]+/).some((name) => aliases.has(name));
+        return matches && (task.status === "已确认" || (task.self_committed === true && Number(task.confidence) >= 0.75));
+      }
+
+      function savedTaskNeedsReview(task) {
+        if (savedTaskIsMine(task) || task.personal === false || ["已取消", "已忽略"].includes(task.status) || Number(task.confidence) < 0.75) return false;
+        if (task.personal === true || task.identity_confirmed === false) return true;
+        const aliases = new Set(task.identity_aliases || []);
+        return ["待确认", "我", ""].includes(task.assignee) || String(task.assignee || "").split(/[、，,和与及\s]+/).some((name) => aliases.has(name));
+      }
+
+      async function patchSavedTask(task, fields) {
+        try {
+          const response = await fetch(`/api/meetings/history/${encodeURIComponent(task.record_id)}/tasks/${task.record_index}`, {
+            method: "PATCH", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ current_user: currentUser(), fields }),
+          });
+          if (!response.ok) throw new Error("任务更新失败");
+          await loadSavedTasks();
+        } catch {
+          todoNotice = "保存任务变更失败，请重试。";
+          render();
+        }
+      }
+
       async function updateManualTodo(todo, fields) {
         const response = await fetch(`/api/meetings/todos/${encodeURIComponent(todo.id)}`, {
           method: "PUT", headers: { "Content-Type": "application/json" },
@@ -2002,6 +2057,12 @@
       }
 
       function toggleGeneratedTask(key, completed) {
+        const savedTask = savedTasks.find((item) => taskKey(item) === key);
+        if (savedTask) {
+          todoNotice = completed ? `已完成「${savedTask.task}」。` : `已恢复「${savedTask.task}」为未完成。`;
+          void patchSavedTask(savedTask, { completed });
+          return;
+        }
         if (!result) return;
         for (const field of ["all_tasks", "my_tasks"]) {
           for (const task of result[field] || []) {
@@ -2412,6 +2473,7 @@
           const record = await response.json();
           currentMeetingId = record.id;
           currentRecordCreatedAt = record.created_at || "";
+          void loadSavedTasks();
           let audioSaved = true;
           if (sourceAudioFile && !recordAudioAvailable) {
             try {
@@ -2687,7 +2749,7 @@
             <section class="focus-query">
               <label for="focusFolder">提问范围</label>
               <select class="input" id="focusFolder">${scopeOptions}</select>
-              ${focusFolder ? `<p class="panel-note">将综合「${escapeHtml(focusFolder.name)}」中已保存的 ${focusFolder.meeting_count || 0} 条记录，并在答案里保留对应原文依据。</p>` : '<p class="panel-note">仅分析当前正在查看或编辑的这条记录。</p>'}
+              ${focusFolder ? `<p class="panel-note">将检索「${escapeHtml(focusFolder.name)}」中的全部 ${focusFolder.meeting_count || 0} 条记录，优先分析相关内容并保留原文依据。</p>` : '<p class="panel-note">仅分析当前正在查看或编辑的这条记录。</p>'}
               ${modeQuestions ? `<div class="focus-mode-chips" aria-label="场景关注方式">${modeQuestions}</div>` : ""}
               <label for="focusQuery">输入重点</label>
               <textarea id="focusQuery" placeholder="例如：我接下来要准备什么？客户对方案最在意的是什么？">${escapeHtml(focusQuery)}</textarea>
@@ -2703,6 +2765,8 @@
       }
 
       function updateTaskStatus(key, status) {
+        const savedTask = savedTasks.find((item) => taskKey(item) === key);
+        if (savedTask) { void patchSavedTask(savedTask, { status }); return; }
         if (!result) return;
 
         ["my_tasks", "all_tasks"].forEach((field) => {
@@ -2743,6 +2807,11 @@
       }
 
       function setTaskPersonal(key, isMine) {
+        const savedTask = savedTasks.find((item) => taskKey(item) === key);
+        if (savedTask) {
+          void patchSavedTask(savedTask, { personal: isMine, status: isMine ? "已确认" : "已取消" });
+          return;
+        }
         if (!result) return;
         (result.all_tasks || []).forEach((task) => {
           if (taskKey(task) === key) {
@@ -2852,6 +2921,12 @@
       }
 
       function updateTaskFields(key, fields) {
+        const savedTask = savedTasks.find((item) => taskKey(item) === key);
+        if (savedTask) {
+          editingTodoKey = "";
+          void patchSavedTask(savedTask, fields).catch(() => { todoNotice = "修改任务失败，请稍后重试。"; render(); });
+          return;
+        }
         if (!result) return;
 
         let newKey = key;
@@ -2994,7 +3069,7 @@
                 <span class="todo-chevron" aria-hidden="true">⌄</span>
               </button>
               ${open ? `<div class="todo-detail">
-                ${task.manual ? '<p class="todo-manual-note">手动添加</p>' : `${isMine ? "" : `<p>负责人：${task.personal === true ? "我（已确认）" : escapeHtml(task.assignee)}</p>`}<p class="todo-evidence"><strong>来源片段｜${escapeHtml(task.source)}</strong><br>${escapeHtml(task.evidence)}</p>${sourceAudioUrl && sourceSeconds(task.source) !== null ? `<button class="btn" type="button" data-play-source="${escapeHtml(task.source)}">播放来源</button>` : ""}`}
+                ${task.manual ? '<p class="todo-manual-note">手动添加</p>' : `${task.record_title ? `<p class="todo-manual-note">来源记录：${escapeHtml(task.record_title)}</p>` : ""}${isMine ? "" : `<p>负责人：${task.personal === true ? "我（已确认）" : escapeHtml(task.assignee)}</p>`}<p class="todo-evidence"><strong>来源片段｜${escapeHtml(task.source)}</strong><br>${escapeHtml(task.evidence)}</p>${sourceAudioUrl && sourceSeconds(task.source) !== null ? `<button class="btn" type="button" data-play-source="${escapeHtml(task.source)}">播放来源</button>` : ""}`}
                 ${isEditing ? `<div class="todo-edit">
                   <label>任务<input class="input" data-todo-field="title" value="${escapeHtml(task.task)}" required /></label>
                   <label>具体截止时间<input class="input" type="datetime-local" data-todo-field="deadline" value="${escapeHtml(taskDueAt(task) || suggestedDueAt(task.deadline))}" /></label>
@@ -3028,13 +3103,19 @@
         }
 
         if (activeTab === "task-list") {
-          const allTasks = result?.all_tasks || result?.my_tasks || [];
-          const reviewTasks = allTasks.filter(taskNeedsMyReview);
-          const mine = [...manualTodos.map(manualTodoAsTask), ...(result?.my_tasks || [])];
+          const currentTasks = result && !currentMeetingId
+            ? (result.all_tasks || []).map((task, index) => ({ ...task, record_id: `current:${index}`, record_index: index,
+                record_title: result.meeting_title || "本次分析", identity_confirmed: result.identity_confirmed,
+                identity_aliases: [resultUser, ...(selectedFolder()?.aliases || [])].filter(Boolean) }))
+            : [];
+          const combined = [...savedTasks, ...currentTasks];
+          const reviewTasks = combined.filter(savedTaskNeedsReview);
+          const mine = [...manualTodos.map(manualTodoAsTask), ...combined.filter(savedTaskIsMine)];
           content.innerHTML = `
             ${todoNotice ? `<p class="panel-note" role="status">${escapeHtml(todoNotice)}</p>` : ""}
             ${reminderText(mine) ? `<p class="due-reminder" role="status">${escapeHtml(reminderText(mine))}</p>` : ""}
             ${renderMarkerInsights()}
+            ${savedTasksLoading ? '<p class="panel-note">正在汇总已保存记录中的任务…</p>' : ""}
             <section class="todo-section"><h3 class="todo-heading">我的任务清单 <span class="todo-count">${mine.length}</span></h3>${todoList(mine, true)}</section>
             <section class="todo-section"><h3 class="todo-heading">模糊任务清单 <span class="todo-count">${reviewTasks.length}</span></h3>${todoList(reviewTasks, false)}</section>
           `;
@@ -3389,17 +3470,13 @@
       });
       document.querySelectorAll("[data-open-tab]").forEach((button) => {
         button.addEventListener("click", () => {
-          if (button.dataset.openTab === "task-list" && !result && homePreviewRecordId) {
-            void openSavedRecord(homePreviewRecordId);
-            return;
-          }
           if (button.dataset.openTab === "library") {
             libraryView = button.dataset.libraryView || "folders";
             libraryScope = "all";
           }
           activateTab(button.dataset.openTab);
           if (button.dataset.openTab === "library") void loadLibrary();
-          if (button.dataset.openTab === "task-list") void loadManualTodos();
+          if (button.dataset.openTab === "task-list") { void loadManualTodos(); void loadSavedTasks(); }
         });
       });
 
@@ -3416,6 +3493,10 @@
         if (userInput.value !== name) {
           userInput.value = name;
           userInput.dispatchEvent(new Event("change", { bubbles: true }));
+          savedTasks = [];
+          manualTodos = [];
+          void loadSavedTasks();
+          void loadManualTodos();
         }
         accountDialog.close();
       });
@@ -3486,6 +3567,8 @@
           focusResult = null;
           focusTrace = null;
           focusMessage = "";
+          focusFolderId = "";
+          focusQuery = "";
           resultUser = record.current_user;
           currentMeetingId = record.id;
           currentRecordCreatedAt = record.created_at || "";
@@ -3722,7 +3805,7 @@
         if (action === "calendar") {
           const task = key.startsWith("manual:")
             ? manualTodos.find((item) => item.id === key.slice(7))
-            : (result?.all_tasks || []).find((item) => taskKey(item) === key);
+            : (savedTasks.find((item) => taskKey(item) === key) || (result?.all_tasks || []).find((item) => taskKey(item) === key));
           if (task?.due_at) downloadCalendar({ task: task.title || task.task, due_at: task.due_at });
           return;
         }
@@ -3870,6 +3953,7 @@
       });
       void loadHomePreview();
       void loadManualTodos();
+      void loadSavedTasks();
     </script>
   </body>
 </html>

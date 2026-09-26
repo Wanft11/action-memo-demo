@@ -6,10 +6,12 @@ from app.models.meeting import MeetingMarker
 from app.services.meeting_analyzer import (
     build_local_focus_analysis,
     build_local_transcript_analysis,
+    concise_task_title,
     dedupe_tasks,
     extract_meeting_title,
     find_context_snippet,
     has_explicit_self_commitment,
+    is_action_cue,
     normalize_llm_analysis,
     normalize_focus_analysis,
     split_transcript_lines,
@@ -37,6 +39,23 @@ def task(title, assignee, evidence, deadline="待确认"):
 
 
 class MeetingAnalysisTests(unittest.TestCase):
+    def test_action_cue_scan_surfaces_lightweight_commitments(self):
+        self.assertTrue(is_action_cue("我把弱网提示列为待确认点，周五和产品核对。"))
+        self.assertTrue(is_action_cue("我会整理一页结论。"))
+        self.assertTrue(is_action_cue("周一中午收到结论后，我把问题清单一起发给参会人。"))
+        self.assertTrue(is_action_cue("说话人 1，请在周五前整理排查结论。"))
+        self.assertFalse(is_action_cue("我觉得弱网提示值得讨论。"))
+
+    def test_task_title_extraction_does_not_match_verb_inside_a_noun(self):
+        self.assertEqual(
+            concise_task_title("发量复现条件", "小万：我会把并发量也写进复现条件。"),
+            "补充并发量复现条件",
+        )
+        self.assertEqual(
+            concise_task_title("周一中午收到排查结论后，我把问题清单一起发给参会人", "小万：周一中午收到排查结论后，我把问题清单一起发给参会人。"),
+            "发送问题清单",
+        )
+
     def test_recording_titles_support_non_meeting_scenarios(self):
         for label in ("主题", "录音主题", "对话主题", "会议主题"):
             with self.subTest(label=label):
@@ -147,6 +166,12 @@ class MeetingAnalysisTests(unittest.TestCase):
             sample = (sample_dir / filename).read_text(encoding="utf-8")
             self.assertEqual(extract_meeting_title(split_transcript_lines(sample)), title)
             self.assertGreaterEqual(len(transcript_turns(split_transcript_lines(sample))), 10)
+
+    def test_demo_transcript_does_not_name_an_unidentified_speaker(self):
+        sample_path = Path(__file__).resolve().parents[1] / "static" / "samples" / "client-follow-up-meeting.txt"
+        sample = sample_path.read_text(encoding="utf-8")
+        self.assertIn("我来发会议邀请。说话人 1，你周一把性能排查结论同步给我", sample)
+        self.assertNotIn("周宁", sample)
 
     def test_every_demo_speaker_turn_has_a_timestamp(self):
         sample_dir = Path(__file__).resolve().parents[1] / "static" / "samples"
@@ -272,6 +297,46 @@ class MeetingAnalysisTests(unittest.TestCase):
         result = normalize_llm_analysis(data, TRANSCRIPT, "小万", None)
         self.assertEqual(result["all_tasks"][0]["task"], "画出产品流程")
         self.assertLessEqual(len(result["all_tasks"][0]["task"]), 14)
+
+    def test_complete_task_object_is_preserved_in_title(self):
+        transcript = "小万：我来发会议邀请。"
+        result = normalize_llm_analysis(
+            {"all_tasks": [task("发送会议邀请", "小万", transcript)]},
+            transcript,
+            "小万",
+            None,
+        )
+        self.assertEqual(result["my_tasks"][0]["task"], "发送会议邀请")
+
+    def test_valid_action_verbs_are_not_filtered_from_ai_tasks(self):
+        transcript = """02:45 说话人 1：我今天把报表导出慢的问题复现一下，明天下午前给一个排查结论。
+08:14 小万：我来发会议邀请。"""
+        result = normalize_llm_analysis({"all_tasks": [
+            task("复现报表导出慢的问题", "说话人 1", "说话人 1：我今天把报表导出慢的问题复现一下，明天下午前给一个排查结论。", "明天下午前"),
+            task("提供性能排查结论", "说话人 1", "说话人 1：我今天把报表导出慢的问题复现一下，明天下午前给一个排查结论。", "明天下午前"),
+            task("发送会议邀请", "小万", "小万：我来发会议邀请。"),
+        ]}, transcript, "小万", None)
+        self.assertEqual([item["task"] for item in result["all_tasks"]], [
+            "复现报表导出慢的问题", "提供性能排查结论", "发送会议邀请",
+        ])
+
+    def test_distinct_owners_in_one_utterance_are_not_collapsed(self):
+        transcript = "08:14 小万：我来发会议邀请。说话人 1，你周一把性能排查结论同步给我。\n08:26 说话人 1：没问题，周一中午前给你。"
+        shared_evidence = "小万：我来发会议邀请。说话人 1，你周一把性能排查结论同步给我。"
+        result = normalize_llm_analysis({"all_tasks": [
+            task("发送会议邀请", "小万", shared_evidence, "周一"),
+            task("提供性能排查结论", "说话人 1", shared_evidence, "周一"),
+        ]}, transcript, "小万", None)
+        owners = {item["task"]: item["assignee"] for item in result["all_tasks"]}
+        self.assertEqual(owners["发送会议邀请"], "小万")
+        self.assertEqual(owners["提供性能排查结论"], "说话人 1")
+
+    def test_deadline_from_neighboring_task_is_not_attached(self):
+        transcript = "08:14 小万：我来发会议邀请。说话人 1，你周一把性能排查结论同步给我。"
+        result = normalize_llm_analysis({"all_tasks": [
+            task("发送会议邀请", "小万", "小万：我来发会议邀请。说话人 1，你周一把性能排查结论同步给我。"),
+        ]}, transcript, "小万", None)
+        self.assertEqual(result["all_tasks"][0]["deadline"], "待确认")
 
     def test_vague_task_titles_are_rejected_even_when_model_returns_them(self):
         transcript = "小万：我会跟进一下。"

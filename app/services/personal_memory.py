@@ -508,28 +508,112 @@ def get_meeting(meeting_id: str, current_user: str) -> dict[str, Any] | None:
     return _record_from_row(row, include_content=True) if row else None
 
 
-def folder_focus_transcript(current_user: str, folder_id: str, limit: int = 12) -> str:
-    """Combine recent saved records into timestamped, title-labelled focus context."""
+def update_saved_task(meeting_id: str, current_user: str, task_index: int, fields: dict[str, Any]) -> dict[str, Any] | None:
+    record = get_meeting(meeting_id, current_user)
+    if not record:
+        return None
+    analysis = record["analysis"]
+    tasks = analysis.get("all_tasks") or []
+    if task_index < 0 or task_index >= len(tasks):
+        return None
+    allowed = {"task", "deadline", "due_at", "status", "personal", "completed", "assignee"}
+    tasks[task_index].update({key: value for key, value in fields.items() if key in allowed})
+    identity = record["current_user"].strip()
+    folder = get_folder(record.get("folder_id", ""), identity)
+    aliases = set([identity, *((folder or {}).get("aliases") or [])])
+    if analysis.get("identity_confirmed") is False:
+        analysis["my_tasks"] = [task for task in tasks if task.get("personal") is True]
+    else:
+        analysis["my_tasks"] = [
+            task for task in tasks
+            if task.get("personal") is True or (
+                task.get("personal") is not False
+                and task.get("status") not in {"已取消", "已忽略"}
+                and any(name in aliases for name in re.split(r"[、，,和与及\s]+", str(task.get("assignee") or "")))
+                and (task.get("status") == "已确认" or (task.get("self_committed") is True and float(task.get("confidence", 0)) >= 0.75))
+            )
+        ]
+    return save_meeting({
+        "current_user": identity,
+        "transcript": record["transcript"],
+        "analysis": analysis,
+        "audio_name": record.get("audio_name", ""),
+        "folder_id": record.get("folder_id", ""),
+    }, meeting_id=meeting_id)
+
+
+def folder_focus_transcript(
+    current_user: str,
+    folder_id: str,
+    focus_query: str = "",
+    max_chars: int = 60_000,
+) -> str:
+    """Search all folder records, preserving relevant turns and nearby context within a size budget."""
     folder = get_folder(folder_id, current_user)
     if not folder:
         return ""
 
-    lines: list[str] = []
-    for summary in list_meetings(current_user, folder["id"])[:limit]:
+    records: list[dict[str, Any]] = []
+    terms = set(re.findall(r"[\u4e00-\u9fff]{2,}|[a-zA-Z0-9]{3,}", focus_query.casefold()))
+    terms.update(str(word).casefold() for word in folder.get("keywords", []) if len(str(word).strip()) >= 2)
+    terms -= {"什么", "怎么", "哪些", "一下", "然后", "最近", "事情", "记录", "告诉", "帮我", "我想", "所有"}
+    for record_rank, summary in enumerate(list_meetings(current_user, folder["id"])):
         record = get_meeting(summary["id"], current_user)
         if not record:
             continue
         title = record["meeting_title"].strip() or "未命名记录"
-        for raw_line in record["transcript"].splitlines():
+        lines = []
+        for line_index, raw_line in enumerate(record["transcript"].splitlines()):
             line = raw_line.strip()
             if not line:
                 continue
             timestamp = re.match(r"^(\d{1,2}:\d{2}(?::\d{2})?)\s*(.*)$", line)
             if timestamp:
-                lines.append(f"{timestamp.group(1)} 【{title}】{timestamp.group(2)}")
+                formatted = f"{timestamp.group(1)} 【{title}】{timestamp.group(2)}"
             else:
-                lines.append(f"【{title}】{line}")
-    return "\n".join(lines)
+                formatted = f"【{title}】{line}"
+            score = sum(1 for term in terms if term in line.casefold())
+            lines.append({"text": formatted, "index": line_index, "score": score, "rank": record_rank})
+        records.append({"rank": record_rank, "lines": lines})
+
+    all_lines = [line for record in records for line in record["lines"]]
+    complete = "\n".join(line["text"] for line in all_lines)
+    if len(complete) <= max_chars:
+        return complete
+
+    # When the full history exceeds the model context budget, include matching
+    # turns and their neighbors across all dates instead of dropping old records.
+    selected: set[tuple[int, int]] = set()
+    for record in records:
+        lines = record["lines"]
+        for index, line in enumerate(lines):
+            if line["score"]:
+                selected.add((record["rank"], index))
+                if index:
+                    selected.add((record["rank"], index - 1))
+                if index + 1 < len(lines):
+                    selected.add((record["rank"], index + 1))
+    candidates = [
+        (record["rank"], index, line)
+        for record in records for index, line in enumerate(record["lines"])
+        if (record["rank"], index) in selected
+    ]
+    if not candidates:
+        candidates = [(record["rank"], index, line) for record in records for index, line in enumerate(record["lines"])]
+    candidates.sort(key=lambda item: (item[2]["score"], -item[0], -item[1]), reverse=True)
+    chosen: set[tuple[int, int]] = set()
+    used_chars = 0
+    for record_rank, index, line in candidates:
+        size = len(line["text"]) + (1 if chosen else 0)
+        if used_chars + size > max_chars:
+            continue
+        chosen.add((record_rank, index))
+        used_chars += size
+    return "\n".join(
+        line["text"]
+        for record in records for index, line in enumerate(record["lines"])
+        if (record["rank"], index) in chosen
+    )
 
 
 def delete_meeting(meeting_id: str, current_user: str) -> bool:

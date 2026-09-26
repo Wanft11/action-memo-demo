@@ -12,6 +12,23 @@ class MeetingHistoryPayload(BaseModel):
     folder_id: str = ""
 
 
+class SavedTaskFields(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    task: str | None = Field(default=None, min_length=1, max_length=500)
+    deadline: str | None = Field(default=None, max_length=100)
+    due_at: str | None = Field(default=None, max_length=32)
+    status: str | None = Field(default=None, max_length=40)
+    personal: bool | None = None
+    completed: bool | None = None
+    assignee: str | None = Field(default=None, max_length=200)
+
+
+class SavedTaskUpdatePayload(BaseModel):
+    current_user: str = Field(min_length=1, max_length=80)
+    fields: SavedTaskFields
+
+
 class RecordingFolderPayload(BaseModel):
     current_user: str = Field(min_length=1, max_length=80)
     name: str = Field(min_length=1, max_length=80)

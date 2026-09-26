@@ -6,7 +6,7 @@ from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Uploa
 from fastapi.responses import FileResponse
 
 from app.core.config import settings
-from app.models.history import FolderSuggestionPayload, MeetingHistoryPayload, PersonalTodoPayload, RecordingFolderImagePayload, RecordingFolderPayload, RecordingFolderUpdatePayload
+from app.models.history import FolderSuggestionPayload, MeetingHistoryPayload, PersonalTodoPayload, RecordingFolderImagePayload, RecordingFolderPayload, RecordingFolderUpdatePayload, SavedTaskUpdatePayload
 from app.models.meeting import MeetingAnalysis, MeetingFocusAnalysis, MeetingMarker
 from app.services.personal_memory import (
     build_personal_profile,
@@ -31,6 +31,7 @@ from app.services.personal_memory import (
     set_folder_image_keywords,
     set_folder_image_status,
     suggest_folder,
+    update_saved_task,
 )
 from app.services.folder_images import folder_image_path, generate_folder_image
 from app.services.meeting_analyzer import (
@@ -179,6 +180,39 @@ def meeting_history_item(meeting_id: str, current_user: str = "") -> dict:
     return record
 
 
+@router.get("/meetings/tasks")
+def meeting_tasks(current_user: str = "") -> list[dict]:
+    if not current_user.strip():
+        return []
+    records = list_meetings(current_user)
+    tasks = []
+    for summary in records:
+        record = get_meeting(summary["id"], current_user)
+        if not record:
+            continue
+        folder = get_folder(record.get("folder_id", ""), current_user)
+        aliases = [current_user.strip(), *((folder or {}).get("aliases") or [])]
+        analysis = record.get("analysis") or {}
+        for index, task in enumerate(analysis.get("all_tasks") or []):
+            task = dict(task)
+            task.update({
+                "record_id": record["id"], "record_title": record["meeting_title"],
+                "record_index": index, "record_created_at": record["created_at"],
+                "record_folder_id": record.get("folder_id", ""), "identity_confirmed": analysis.get("identity_confirmed", True),
+                "identity_aliases": aliases,
+            })
+            tasks.append(task)
+    return tasks
+
+
+@router.patch("/meetings/history/{meeting_id}/tasks/{task_index}")
+def update_meeting_task(meeting_id: str, task_index: int, payload: SavedTaskUpdatePayload) -> dict:
+    record = update_saved_task(meeting_id, payload.current_user, task_index, payload.fields.model_dump(exclude_unset=True))
+    if not record:
+        raise HTTPException(status_code=404, detail="没有找到这条任务或对应记录")
+    return record
+
+
 @router.post("/meetings/history/{meeting_id}/audio")
 async def attach_meeting_audio(meeting_id: str, current_user: str = Form(), audio: UploadFile = File()) -> dict:
     audio_bytes = await audio.read()
@@ -241,7 +275,7 @@ def analyze_focus(
 ) -> MeetingFocusAnalysis:
     scoped_transcript = transcript.strip()
     if folder_id.strip():
-        scoped_transcript = folder_focus_transcript(current_user, folder_id)
+        scoped_transcript = folder_focus_transcript(current_user, folder_id, focus_query)
     if not scoped_transcript:
         raise HTTPException(status_code=422, detail="请先提供转写内容")
     if not focus_query.strip():

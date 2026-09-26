@@ -209,12 +209,45 @@ def extract_deadline(text: str) -> str:
     return "待确认"
 
 
+def extract_task_deadline(task_text: str, evidence: str, assignee: str = "") -> str:
+    """Infer a deadline only from the clause that names this task's object."""
+    match = re.match(
+        r"^(?:画出|画|整理|填写|填|提交|准备|确认|核对|检查|复现|提供|给出|同步|修改|设计|测试|发送|发出|输出|梳理|跟进|完成|更新|编写|撰写|安排|联系|邀请|发)(.+)$",
+        normalize_text_for_dedupe(task_text),
+    )
+    task_object = match.group(1) if match else normalize_text_for_dedupe(task_text)
+    if not task_object:
+        return "待确认"
+
+    turns = transcript_turns(evidence.splitlines())
+    matched_turn_indices = []
+    for index, turn in enumerate(turns):
+        for clause in re.split(r"[。！？；]", turn["text"]):
+            if task_object in normalize_text_for_dedupe(clause):
+                deadline = extract_deadline(clause)
+                if deadline != "待确认":
+                    return deadline
+                matched_turn_indices.append(index)
+
+    # A direct acceptance in the next turn can supply the deadline for the named task.
+    for index in matched_turn_indices:
+        if (
+            index + 1 < len(turns)
+            and turns[index + 1]["speaker"] == assignee
+            and re.match(r"^(?:可以|好|行|没问题|收到)[，,。]?\s*(?:我|今晚|明天|后天|周|今天)", turns[index + 1]["text"])
+        ):
+            deadline = extract_deadline(turns[index + 1]["text"])
+            if deadline != "待确认":
+                return deadline
+    return "待确认"
+
+
 def clean_task_text(text: str, current_user: str) -> str:
     cleaned = re.sub(r"^\s*(\d{1,2}:\d{2}(?::\d{2})?\s*)?", "", text)
     cleaned = re.sub(r"^[^：:]{1,12}[：:]\s*", "", cleaned)
     if current_user:
         cleaned = cleaned.replace(current_user, "你")
-    cleaned = re.sub(r"(麻烦|请|需要|要|记得|负责|跟进)", "", cleaned, count=1)
+    cleaned = re.sub(r"^(?:麻烦|请|需要|要|记得|负责|跟进)\s*", "", cleaned, count=1)
     cleaned = cleaned.strip(" ，。；;")
     return cleaned or text.strip()
 
@@ -236,8 +269,31 @@ def concise_task_title(task_text: str, evidence: str = "") -> str:
 
     cleaned = clean_task_text(task_text, "")
     cleaned = re.sub(r"^(?:我(?:这边)?|我们|请|麻烦|需要|要|记得)\s*", "", cleaned)
+    cleaned_key = normalize_text_for_dedupe(cleaned)
+    evidence_key = normalize_text_for_dedupe(evidence)
+    source_variants = (cleaned_key, cleaned_key.replace("发送", "发"), cleaned_key.replace("填写", "填"), cleaned_key.replace("画出", "画"))
+    if is_specific_task_title(cleaned) and any(variant and variant in evidence_key for variant in source_variants):
+        return cleaned
+
+    write_into = re.search(r"(?:我(?:这边)?\s*)?把([^，。；！？]{1,16}?)写进([^，。；！？]{1,16})", evidence)
+    if write_into:
+        return f"补充{write_into.group(1).removesuffix('也')}{write_into.group(2)}"
+
+    ba_action = re.search(
+        r"(?:我(?:这边)?\s*)?(?:把|将)([^，。；！？]{1,20}?)(?:一起|先|再)?(发送|发给|发|整理|核对|检查|准备|提供|给出|同步|补充)(?:给[^，。；！？]*)?",
+        cleaned,
+    )
+    if ba_action:
+        action, object_text = ba_action.group(2), ba_action.group(1)
+        object_text = re.sub(r"(?:也|再|先|一下|出来)$", "", object_text).strip()
+        if action in {"发", "发给"}:
+            action = "发送"
+        title = f"{action}{object_text}"
+        if is_specific_task_title(title):
+            return title
+
     match = re.search(
-        r"(画出|画|整理|填写|填|提交|准备|确认|修改|设计|测试|发送|输出|梳理|跟进|完成)([^，。；！？]{0,18})",
+        r"(?:^|(?:我|我们|请|麻烦|需要|要|负责|然后|并且|也|先|今天|明天|今晚|周[一二三四五六日天]|.{0,6}前))\s*(画出|画|整理|填写|填|提交|准备|确认|核对|检查|复现|提供|给出|同步|修改|设计|测试|发送|发出|输出|梳理|跟进|完成|更新|编写|撰写|安排|联系|邀请|发|补充)([^，。；！？]{0,24})",
         cleaned,
     )
     if match:
@@ -249,7 +305,7 @@ def concise_task_title(task_text: str, evidence: str = "") -> str:
             action = "填写"
         title = f"{action}{object_text}".strip()
         if len(title) >= 3:
-            return title[:16]
+            return title[:24]
     return cleaned[:16] or "待确认任务"
 
 
@@ -260,10 +316,10 @@ def normalize_text_for_dedupe(text: str) -> str:
 def is_specific_task_title(task_text: str) -> bool:
     """Require a compact action plus a concrete object, not a conversational placeholder."""
     title = re.sub(r"[\s，。、“”\"'：:；;,.!?！？]+", "", task_text)
-    if len(title) < 4 or len(title) > 16:
+    if len(title) < 4 or len(title) > 24:
         return False
     match = re.match(
-        r"^(画出|画|整理|填写|填|提交|准备|确认|修改|设计|测试|发送|输出|梳理|跟进|完成)(.+)$",
+        r"^(画出|画|整理|填写|填|提交|准备|确认|核对|检查|复现|提供|给出|同步|修改|设计|测试|发送|发出|输出|梳理|跟进|完成|更新|编写|撰写|安排|联系|邀请|发|补充)(.+)$",
         title,
     )
     if not match:
@@ -337,6 +393,19 @@ def transcript_turns(lines: list[str]) -> list[dict]:
             speaker, line = match.groups()
         turns.append({"speaker": speaker, "text": line, "source": timestamp or f"第 {index + 1} 条"})
     return turns
+
+
+def is_action_cue(text: str) -> bool:
+    """Find likely assignments or commitments for the model's completeness pass."""
+    self_commitment = re.search(
+        r"我(?:(?:这边|今天|明天|今晚|先|再|之后|随后|周[一二三四五六日天])\s*){0,3}(?:会|来|负责|把|将|整理|核对|检查|准备|发送|发|给|提供|输出|单列|补)",
+        text,
+    )
+    direct_assignment = re.search(
+        r"(?:(?:请|麻烦)\s*(?:小万|说话人\s*\d+|[\u4e00-\u9fff]{1,4})\s*[，,]?\s*(?:在|把|负责|整理|核对|检查|准备|发送|发|提供|给|完成|提交)|(?:小万|说话人\s*\d+|[\u4e00-\u9fff]{1,4})[，,]?\s*(?:请|麻烦)\s*(?:在|把|负责|整理|核对|检查|准备|发送|发|提供|给|完成|提交))",
+        text,
+    )
+    return bool(self_commitment or direct_assignment)
 
 
 def timestamp_to_seconds(value: str) -> int | None:
@@ -525,6 +594,22 @@ def infer_assignee_from_evidence(evidence: str, participants: list[str]) -> str 
         ):
             return turn["speaker"]
     return None
+
+
+def assignee_is_supported_by_evidence(assignee: str, evidence: str) -> bool:
+    """Keep a valid model owner when the cited turns explicitly support that person."""
+    for turn in transcript_turns(evidence.splitlines()):
+        if turn["speaker"] == assignee and re.search(
+            r"(?:^|[。！？；，,]\s*)我(?:这边)?(?:会|来|负责|先|今晚|明天|周[一二三四五六日天]|把|将|去|发)",
+            turn["text"],
+        ):
+            return True
+        if turn["speaker"] != assignee and re.search(
+            rf"(?:^|[。！？；])\s*{re.escape(assignee)}\s*[，,、]\s*(?:你|请|负责|把|将|周[一二三四五六日天]|今天|明天|下周)",
+            turn["text"],
+        ):
+            return True
+    return False
 
 
 def task_belongs_to_current_user(task: dict, current_user: str) -> bool:
@@ -808,7 +893,12 @@ def normalize_llm_analysis(data: dict, transcript: str, current_user: str, marke
                 inferred_assignee = infer_assignee_from_evidence(evidence, list(participants))
                 owners = [str(assignee)] if str(assignee) in participants else re.split(r"[、，,和与及\s]+", str(assignee))
                 valid_owners = all(owner in participants for owner in owners)
-                if inferred_assignee:
+                supported_model_owner = (
+                    valid_owners
+                    and len(owners) == 1
+                    and assignee_is_supported_by_evidence(owners[0], evidence)
+                )
+                if inferred_assignee and not supported_model_owner:
                     if valid_owners and len(owners) > 1 and inferred_assignee in owners:
                         assignee = "、".join(dict.fromkeys(owners))
                     else:
@@ -818,7 +908,7 @@ def normalize_llm_analysis(data: dict, transcript: str, current_user: str, marke
                 sources = matching_turns(evidence, transcript_lines)
                 deadline = task.get("deadline") or task.get("due") or "待确认"
                 if deadline == "待确认":
-                    deadline = extract_deadline(evidence)
+                    deadline = extract_task_deadline(str(task_text), evidence, str(assignee))
                 task_text = concise_task_title(str(task_text), evidence)
                 if not is_specific_task_title(task_text):
                     continue
@@ -1046,10 +1136,14 @@ def analyze_transcript_with_llm(
     marker_text = "\n".join(
         f"- {marker.time} {marker.note or marker.label}" for marker in markers or []
     )
-    annotated_transcript = "\n".join(
+    annotated_turns = [
         f"[T{index:03d} | {turn['source']} | {turn['speaker'] or '说话人未知'}] {turn['text']}"
         for index, turn in enumerate(transcript_turns(split_transcript_lines(transcript)), start=1)
-    )
+    ]
+    annotated_transcript = "\n".join(annotated_turns)
+    action_cues = "\n".join(
+        line for line in annotated_turns if is_action_cue(line.rsplit("] ", 1)[-1])
+    ) or "无明显行动线索；仍需按完整转写判断。"
     prompt = f"""
 你是一个严格的录音行动分析助手。内容可能来自工作沟通、家庭商量、朋友聊天或正式会议。请根据转写生成面向当前用户的内容摘要和行动项。
 
@@ -1064,6 +1158,9 @@ def analyze_transcript_with_llm(
 录音或对话转写：
 {annotated_transcript}
 
+程序初筛的行动线索（只是待核对候选，不代表每条都一定是任务）：
+{action_cues}
+
 请只输出 JSON，字段包括：
 meeting_title, summary, decisions, all_tasks, risks, questions, evidence_notes, marker_insights。
 all_tasks 中每个任务包含 task, assignee, deadline, evidence_ids, status, confidence。
@@ -1074,15 +1171,16 @@ evidence_notes 中每项包含 title, source, evidence。
 marker_insights 中每项对应一个硬件标记，包含 marker_time, summary, personal_action, deadline, conditions, risks, evidence_ids。marker_time 必须使用给出的标记时间；evidence_ids 只引用该标记前后约 45 秒内的原话。personal_action 只有存在明确属于当前用户的行动时才填写，否则为空字符串。conditions 和 risks 各最多 2 条，若原话没有则输出空数组。
 
 任务抽取规则：
+0. 任务完整性是本次输出的首要目标；摘要和背景可以精炼，但不能用概括代替任务明细，也不能只输出当前用户的任务。all_tasks 必须覆盖所有说话人的明确行动，之后程序才会筛选当前用户。
 1. 只提取明确需要执行的行动，例如“谁负责做什么”“谁在什么时候前完成什么”。
 2. 不要把观点、背景、需求证据、原则、口号、访谈原话当成任务。
 3. 如果一句话只是支持某个结论，例如“大家不是需要完整记录，而是容易忘掉信息”，它只能作为 evidence 或 decision，不能作为 task。
 4. 同一件事只输出一次，不要因为不同人都参与讨论就拆成多个重复任务。
 5. 如果没有明确负责人，assignee 写“待确认”；不要臆测负责人。
 6. 如果没有明确截止时间，deadline 写“待确认”。
-7. task 必须是 4 到 14 个汉字的可执行动词短句，例如“画出产品流程”“整理访谈证据”“确认 MVP 演示路径”；只保留“动作 + 对象”，绝不能复制转写原句，不能包含“我、你、我们、然后、再想一下”等口语前缀或解释。
+7. task 使用简洁、完整的可执行动词短句，通常 4 到 14 个汉字，例如“画出产品流程”“整理访谈证据”“发送会议邀请”。优先保留完整对象；对象较长时允许超过 14 字，绝不能为了凑字数截断词语或丢掉对象关键信息。只保留“动作 + 对象”，不能包含“我、你、我们、然后、再想一下”等口语前缀或解释。
 8. confidence 必须是 0 到 1 的数字，不要输出“高/中/低”。
-9. 必须通读全篇，把当前用户和其他人的明确行动全部放入 all_tasks，不因与主要话题无关而漏掉临时个人事项。
+9. 必须通读全篇，把当前用户和其他人的明确行动全部放入 all_tasks，不因与主要话题无关而漏掉临时个人事项；没有条数上限。
 10. all_tasks 输出团队所有明确行动项，使用简短标题，不要因缺少动作关键词而遗漏“填表”等行动。
 11. assignee 使用真实姓名，多人合作用“、”连接；“我”是该句说话人，不能一律当成当前用户。“甲：乙请做某事”的负责人是乙。
 12. evidence_ids 必须包含说明任务对象的原文编号，以及确定负责人和期限的相关原文编号。
@@ -1100,7 +1198,14 @@ marker_insights 中每项对应一个硬件标记，包含 marker_time, summary,
 24. 每个硬件标记都生成一条 marker_insights。summary 只说明这段重点谈清了什么，不要把背景讨论夸大成结论或任务。
 
 输出前必须逐项复核：
-- 先收集所有分工、承诺和临时事项，再合并同一行动的多次提及。不能只看最后一句或最后总结。
+- 先按时间顺序逐句扫描全文，内部建立“行动/交付物、负责人、期限、证据编号”核对清单，再把清单完整写入 all_tasks。扫描时特别检查请求、指派、承诺、交付、跟进和临时插入事项；不能只看最后一句或最后总结，也不能只依据会议主题筛选。
+- 对每一句含“我会、我来、我负责、我把……列为……、请某人……、某日前给/发/核对/整理”的话逐条做覆盖检查：要么在 all_tasks 中有对应任务，要么能明确说明它是已完成、纯假设或未触发条件。承诺“等收到某材料后再发送/整理”的后续动作也是任务，并记录其前置条件。
+- 必须逐条检查上方“程序初筛的行动线索”；其中明确可执行的请求或承诺都要进入 all_tasks，除非有原文证明它已完成、仅是假设或条件尚未触发。不要因其是次要事项而省略。
+- 每个独立可交付成果都要有对应任务：同一句包含不同成果或不同负责人时拆开；同一成果在多句中补充细节时合并。明确的“我会/我来/我负责/我今天或某日前给/发/整理/核对……”是承诺，不要只当作摘要内容。
+- 不要漏掉表达较轻或被说成“待确认点”“顺手做”“单独做一页”的承诺；例如“我把弱网提示列为待确认点，周五和产品核对”仍然是“核对弱网提示”，“我会整理一页结论”仍然是独立交付项。只有明确是建议、假设、条件未触发或他人已完成的事项才不作为当前待办。
+- 标题必须表达完整动作和对象。输出前检查是否出现截断词（例如“发送会议邀”）；如果原文明确说“发送会议邀请”，就必须保留完整对象“会议邀请”。
+- 说话人标签决定谁在说话；句中被点名的人只有在被明确请求或指派时才是负责人。当前用户说“我来发邀请。小周，你周一给结论”时，应分别归给当前用户和小周，不能把两个动作归给同一人。若转写没有提供他人姓名，就保留“说话人 1/2”等标签，不要从称呼或个人画像猜测身份。
+- confidence 反映原文证据与负责人判断的确定程度；只有任务、负责人和关键期限都由直接明确的原文支持时才可接近 1.0，不要把“有一句相关原文”本身当成 100% 确定。
 - 被共同指派的人都是负责人；其中一人说“我今晚整理”不代表其他人退出。“我也一起”表示加入同一任务，合并负责人。
 - 每项 evidence_ids 必须至少包含说明“做什么”的原句编号；如果负责人或截止时间在另一句，追加那句编号。不能只引用“可以，我今晚整理”这种缺少任务对象的话。
 - 查找该行动在前文的具体期限；前文有具体钟点时，不能用“今天”“等会”覆盖它。例如前文说申请表十一点半截止，后来只说“我没填”，deadline 仍应是“11:30”。

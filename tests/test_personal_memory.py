@@ -34,6 +34,35 @@ def payload(tasks):
 
 
 class PersonalMemoryTests(unittest.TestCase):
+    def test_account_task_list_aggregates_records_and_updates_only_owned_task(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            data_dir = Path(temp_dir) / ".action-memo"
+            with patch("app.services.personal_memory.DATA_DIR", data_dir), patch(
+                "app.services.personal_memory.DATABASE_PATH", data_dir / "action_memo.db"
+            ):
+                first = save_meeting(payload([
+                    {"task": "提交预算", "assignee": "小万", "source": "01:00", "evidence": "小万：我今天提交预算。", "personal": True, "status": "已确认"},
+                ]))
+                second = save_meeting(payload([
+                    {"task": "联系供应商", "assignee": "小万", "source": "02:00", "evidence": "说话人 1：小万，明天联系供应商。", "confidence": 0.9, "status": "待确认"},
+                ]))
+                client = TestClient(app)
+                response = client.get("/api/meetings/tasks", params={"current_user": "小万"})
+                self.assertEqual(response.status_code, 200)
+                items = response.json()
+                self.assertEqual({item["record_id"] for item in items}, {first["id"], second["id"]})
+                updated = client.patch(
+                    f"/api/meetings/history/{second['id']}/tasks/0",
+                    json={"current_user": "小万", "fields": {"personal": True, "status": "已确认", "completed": True}},
+                )
+                self.assertEqual(updated.status_code, 200)
+                self.assertTrue(get_meeting(second["id"], "小万")["analysis"]["all_tasks"][0]["completed"])
+                self.assertEqual(client.patch(
+                    f"/api/meetings/history/{second['id']}/tasks/0",
+                    json={"current_user": "其他人", "fields": {"completed": False}},
+                ).status_code, 404)
+                self.assertFalse(get_meeting(first["id"], "小万")["analysis"]["all_tasks"][0].get("completed", False))
+
     def test_saved_audio_can_be_replayed_and_is_deleted_with_record(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             data_dir = Path(temp_dir) / ".action-memo"

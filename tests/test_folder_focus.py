@@ -8,9 +8,58 @@ from fastapi.testclient import TestClient
 from app.core.config import settings
 from app.main import app
 from app.models.meeting import MeetingFocusAnalysis, MeetingFocusSource
+from app.services.personal_memory import folder_focus_transcript
 
 
 class FolderFocusTests(unittest.TestCase):
+    def test_folder_focus_searches_more_than_twelve_records(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            data_dir = Path(temp_dir) / ".action-memo"
+            with patch("app.services.personal_memory.DATA_DIR", data_dir), patch(
+                "app.services.personal_memory.DATABASE_PATH", data_dir / "action_memo.db"
+            ):
+                client = TestClient(app)
+                folder = client.post("/api/meetings/folders", json={
+                    "current_user": "演示用户", "name": "工作沟通", "keywords": ["预算"],
+                }).json()
+                ids = []
+                for index in range(15):
+                    saved = client.post("/api/meetings/history", json={
+                        "current_user": "演示用户", "folder_id": folder["id"],
+                        "transcript": f"{index:02d}:00 说话人 1：这是第 {index} 条记录。",
+                        "analysis": {"meeting_title": f"沟通 {index}", "all_tasks": []},
+                    }).json()
+                    ids.append(saved["id"])
+                context = folder_focus_transcript("演示用户", folder["id"])
+                self.assertEqual(context.count("【沟通 "), 15)
+                self.assertIn("【沟通 0】", context)
+
+    def test_large_folder_focus_prioritizes_old_relevant_evidence_within_budget(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            data_dir = Path(temp_dir) / ".action-memo"
+            with patch("app.services.personal_memory.DATA_DIR", data_dir), patch(
+                "app.services.personal_memory.DATABASE_PATH", data_dir / "action_memo.db"
+            ):
+                client = TestClient(app)
+                folder = client.post("/api/meetings/folders", json={
+                    "current_user": "演示用户", "name": "工作沟通",
+                }).json()
+                client.post("/api/meetings/history", json={
+                    "current_user": "演示用户", "folder_id": folder["id"],
+                    "transcript": "00:01 说话人 1：预算上限是三万元。\n00:02 说话人 2：这个上限已经确认。",
+                    "analysis": {"meeting_title": "早期报价", "all_tasks": []},
+                })
+                for index in range(8):
+                    client.post("/api/meetings/history", json={
+                        "current_user": "演示用户", "folder_id": folder["id"],
+                        "transcript": f"00:01 说话人 1：近期讨论其他内容 {index}。" + ("补充背景。" * 30),
+                        "analysis": {"meeting_title": f"近期记录 {index}", "all_tasks": []},
+                    })
+                context = folder_focus_transcript("演示用户", folder["id"], "预算上限", max_chars=260)
+                self.assertLessEqual(len(context), 260)
+                self.assertIn("早期报价", context)
+                self.assertIn("三万元", context)
+
     def test_folder_focus_combines_only_selected_folder_records(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             data_dir = Path(temp_dir) / ".action-memo"
