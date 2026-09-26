@@ -45,6 +45,7 @@ class MeetingMarkerInsight(BaseModel):
 
 
 class MeetingFocusAnalysis(BaseModel):
+    marker_insights: list[MeetingMarkerInsight] = []
     query: str
     title: str
     answer: str

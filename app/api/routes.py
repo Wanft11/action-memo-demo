@@ -6,6 +6,7 @@ from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Uploa
 from fastapi.responses import FileResponse
 
 from app.core.config import settings
+from app.services.meeting_analyzer import marker_insights_from_transcript
 from app.models.history import FolderSuggestionPayload, MeetingHistoryPayload, PersonalTodoPayload, RecordingFolderImagePayload, RecordingFolderPayload, RecordingFolderUpdatePayload, SavedTaskUpdatePayload
 from app.models.meeting import MeetingAnalysis, MeetingFocusAnalysis, MeetingMarker
 from app.services.personal_memory import (
@@ -272,6 +273,7 @@ def analyze_focus(
     current_user: str = Form(default=""),
     focus_query: str = Form(default=""),
     folder_id: str = Form(default=""),
+    markers: str = Form(default="[]"),
 ) -> MeetingFocusAnalysis:
     scoped_transcript = transcript.strip()
     if folder_id.strip():
@@ -281,12 +283,21 @@ def analyze_focus(
     if not focus_query.strip():
         raise HTTPException(status_code=422, detail="请输入想关注的重点")
 
-    return analyze_personal_focus(
+    try:
+        parsed_markers = [MeetingMarker.model_validate(item) for item in json.loads(markers)]
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=422, detail="重点事件格式不正确")
+    analysis = analyze_personal_focus(
         transcript=scoped_transcript,
         current_user=current_user,
         focus_query=focus_query,
         personal_context=personal_context(current_user, scoped_transcript, folder_id),
     )
+    if not folder_id:
+        analysis.marker_insights = marker_insights_from_transcript(
+            scoped_transcript.splitlines(), current_user, parsed_markers, []
+        )
+    return analysis
 
 
 @router.post("/meetings/transcribe")
