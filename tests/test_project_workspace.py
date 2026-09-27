@@ -55,6 +55,12 @@ class ProjectWorkspaceTests(unittest.TestCase):
         self.assertEqual(len(response.json()["marker_insights"]), 1)
         self.assertEqual(response.json()["marker_insights"][0]["marker_time"], "00:01")
 
+    def test_public_static_files_hide_database_snapshots(self):
+        database = self.client.get("/static/samples/action_memo_demo.db")
+        sample_transcript = self.client.get("/static/samples/recording-bean-preliminary-meeting.txt")
+        self.assertEqual(database.status_code, 404)
+        self.assertEqual(sample_transcript.status_code, 200)
+
     def test_invalid_markers_return_validation_error(self):
         response = self.client.post("/api/meetings/focus", data={
             "transcript": "今天提交报价单", "focus_query": "报价", "markers": "invalid",

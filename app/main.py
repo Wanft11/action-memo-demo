@@ -2,7 +2,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import router
@@ -23,7 +23,14 @@ app.include_router(router, prefix="/api")
 
 static_dir = Path(__file__).resolve().parent.parent / "static"
 if static_dir.exists():
-    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    class PublicStaticFiles(StaticFiles):
+        async def get_response(self, path: str, scope):
+            filename = Path(path).name.lower()
+            if filename.endswith((".db", ".db-wal", ".db-shm", ".sqlite", ".sqlite3")):
+                return Response(status_code=404)
+            return await super().get_response(path, scope)
+
+    app.mount("/static", PublicStaticFiles(directory=static_dir), name="static")
 
 
 @app.get("/")

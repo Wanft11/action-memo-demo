@@ -73,6 +73,22 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 手机与电脑连接同一个可信 Wi-Fi 后，在手机浏览器打开 `http://电脑的局域网 IP:8000/demo`。Mac 可用 `ifconfig en0` 查看 `inet` 地址。不要在公共网络开放此 Demo：当前版本没有真正的账号认证，同一台服务上的使用者会共享本机数据库和 API 配置。电脑需要保持运行。
 
+### 免费部署比赛演示版（Render）
+
+仓库根目录的 `render.yaml` 可用于在 Render 建立免费 Web Service。登录 Render 后选择 `New → Blueprint`，连接 GitHub 上的 `Wanft11/action-memo-demo` 仓库并部署。首次部署时，Render 会要求填写 `OPENAI_API_KEY`；请在 Render Dashboard 的 Environment 中添加，标记为 Secret。不要把 Key 写进代码、README、GitHub Issue 或聊天消息。若暂时不填，文字和测试转写仍可试用，但需要 OpenAI 的功能不可用。
+
+这是供评委短期试用的公开 Demo，不要导入真实录音或个人数据库。当前没有账号鉴权，任何知道链接的人都能访问 API；当前用户名称不是身份验证。免费实例会在空闲后休眠，首次唤醒可能需要约一分钟；本地 SQLite、上传音频和生成的文件夹图片都存于临时文件系统，服务休眠、重启或重新部署后可能丢失。新建文件夹的图片生成会单独消耗 OpenAI API 额度。上线前建议为比赛单独创建 API Project/Key，并设置可强制执行的支出上限；仅通知预算不一定会停止请求。
+
+Render Blueprint 部署步骤：
+
+1. 把最新代码推送到 GitHub。
+2. 登录 Render，选择 `New → Blueprint`，连接 `Wanft11/action-memo-demo` 仓库并选择 `master` 分支。
+3. 确认服务计划为 `Free`，开始部署。
+4. 部署完成后，在该服务的 `Environment` 中添加 `OPENAI_API_KEY`，填入新的 API Key，保存并重新部署。Key 只填在 Render 控制台，不要发给队友或写进仓库。
+5. 打开 Render 提供的 `onrender.com` 地址并追加 `/demo`，例如 `https://你的服务名.onrender.com/demo`，将这个链接发给评委。
+
+API Key 可随时在 Render 的 Environment 中轮换；如果旧 Key 曾提交到 GitHub、截图或聊天中，应先在 OpenAI 控制台撤销旧 Key，再将新 Key 保存到 Render。仓库中的 SQLite 快照不会自动导入线上服务；公开服务也会拒绝直接下载 `static/` 下的 SQLite 文件。
+
 ### 快速试跑样本
 
 从首页点击“录音转写”，切换到“粘贴文字”，再点“加载测试转写”，可从 11 份不同场景的样本中选择。每份样本约 10–15 分钟，每轮发言间隔 5–15 秒。测试样本预设本人标为“小万”，其他发言者保留为“说话人 1/2/3”；对话中实际说出口的姓名仍按原话保留。加载样本后会自动选中“小万”，但真实录音目前不具备自动声纹认人的能力，仍需人工确认。预赛样本在 `static/samples/recording-bean-preliminary-meeting.txt`。
